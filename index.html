@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>投标文件审核系统</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #1e40af;
+            --primary-light: #3b82f6;
+            --primary-dark: #1e3a8a;
+            --success: #16a34a;
+            --error: #dc2626;
+            --warning: #f59e0b;
+            --gray-100: #f3f4f6;
+            --gray-200: #e5e7eb;
+            --gray-300: #d1d5db;
+            --gray-400: #9ca3af;
+            --gray-500: #6b7280;
+            --gray-600: #4b5563;
+            --gray-700: #374151;
+            --gray-800: #1f2937;
+            --gray-900: #111827;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Noto Sans SC', 'Inter', sans-serif;
+            background-color: var(--gray-100);
+            color: var(--gray-800);
+        }
+
+        .main-container {
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* 文本编辑器样式 */
+        .text-editor {
+            border: 2px solid var(--gray-300);
+            border-radius: 8px;
+            padding: 16px;
+            background: white;
+            transition: all 0.3s ease;
+        }
+
+        .text-editor:focus-within {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        .task-card {
+            border-left: 4px solid var(--primary);
+            background: white;
+            border-radius: 8px;
+            padding: 16px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .task-card:hover {
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .task-card.active {
+            border-left-color: var(--primary-light);
+            background: #eff6ff;
+        }
+
+        /* 审核结果样式 */
+        .review-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 12px;
+            border-radius: 9999px;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .review-badge.pass {
+            background-color: #dcfce7;
+            color: var(--success);
+        }
+
+        .review-badge.fail {
+            background-color: #fee2e2;
+            color: var(--error);
+        }
+
+        .review-badge.pending {
+            background-color: #fef3c7;
+            color: var(--warning);
+        }
+
+        /* 动画效果 */
+        .fade-enter-active,
+        .fade-leave-active {
+            transition: opacity 0.3s ease;
+        }
+
+        .fade-enter-from,
+        .fade-leave-to {
+            opacity: 0;
+        }
+
+        /* 加载动画 */
+        .loader {
+            border: 3px solid var(--gray-200);
+            border-top: 3px solid var(--primary);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* 滚动条样式 */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--gray-100);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--gray-400);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--gray-500);
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div class="main-container flex">
+            <!-- 左侧：文件输入区域 -->
+            <div class="w-1/4 bg-white border-r border-gray-200 flex flex-col">
+                <header class="bg-primary text-white p-4">
+                    <h1 class="text-xl font-semibold">投标文件审核系统</h1>
+                    <p class="text-blue-100 text-sm mt-1">智能分析，精准审核</p>
+                </header>
+
+                <div class="p-4 flex-1 overflow-y-auto">
+                    <!-- 需求文本输入 -->
+                    <div class="mb-6">
+                        <label class="block text-gray-700 text-sm font-medium mb-2">
+                            需求文档
+                        </label>
+                        <div class="text-editor h-64 overflow-y-auto" contenteditable="true"
+                             v-html="requirementText"
+                             @input="updateRequirementText"
+                             placeholder="在此粘贴或输入需求文档..."></div>
+                        <div class="mt-2 flex justify-between items-center">
+                            <span class="text-xs text-gray-500">
+                                字符数: {{ requirementText.length }}
+                            </span>
+                            <button v-if="requirementText" @click="clearRequirementText"
+                                    class="text-xs text-red-600 hover:text-red-800">
+                                清空
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 投标文件输入 -->
+                    <div class="mb-6">
+                        <label class="block text-gray-700 text-sm font-medium mb-2">
+                            投标文件
+                        </label>
+                        <div class="text-editor h-64 overflow-y-auto" contenteditable="true"
+                             v-html="bidText"
+                             @input="updateBidText"
+                             placeholder="在此粘贴或输入投标文件..."></div>
+                        <div class="mt-2 flex justify-between items-center">
+                            <span class="text-xs text-gray-500">
+                                字符数: {{ bidText.length }}
+                            </span>
+                            <button v-if="bidText" @click="clearBidText"
+                                    class="text-xs text-red-600 hover:text-red-800">
+                                清空
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 分析按钮 -->
+                    <button @click="analyzeDocuments"
+                            :disabled="analyzing || !requirementText || !bidText"
+                            class="w-full bg-primary text-white py-3 px-4 rounded-lg font-medium hover:bg-primary-dark transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed">
+                        <span v-if="analyzing" class="inline-flex items-center">
+                            <div class="loader mr-2"></div>
+                            分析中...
+                        </span>
+                        <span v-else>开始分析</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- 中间：任务列表 -->
+            <div class="w-2/5 bg-gray-50 border-r border-gray-200 flex flex-col">
+                <header class="bg-white border-b border-gray-200 p-4">
+                    <h2 class="text-lg font-semibold text-gray-800">任务列表</h2>
+                    <p class="text-gray-600 text-sm mt-1">共 {{ tasks.length }} 个任务</p>
+                </header>
+
+                <div class="flex-1 overflow-y-auto">
+                    <div v-if="tasks.length === 0" class="p-8 text-center text-gray-500">
+                        <svg class="w-16 h-16 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path>
+                        </svg>
+                        <p>暂无任务</p>
+                        <p class="text-sm mt-2">请在左侧输入需求文档和投标文件后点击"开始分析"</p>
+                    </div>
+
+                    <transition-group name="fade" tag="div" class="p-4 space-y-3">
+                        <div v-for="task in tasks" :key="task.id"
+                             :class="['task-card', { active: selectedTaskId === task.id }]"
+                             @click="selectTask(task.id)">
+                            <h3 class="font-medium text-gray-800 mb-1">{{ task.title }}</h3>
+                            <p class="text-sm text-gray-600 mb-2 line-clamp-2">{{ task.description }}</p>
+                            <div class="flex justify-between items-center">
+                                <span class="text-xs text-gray-500">
+                                    <span class="inline-block w-2 h-2 bg-blue-500 rounded-full mr-1"></span>
+                                    待审核
+                                </span>
+                                <span class="text-xs text-gray-400">任务 {{ task.id }}</span>
+                            </div>
+                        </div>
+                    </transition-group>
+                </div>
+            </div>
+
+            <!-- 右侧：任务审核 -->
+            <div class="flex-1 bg-white">
+                <header v-if="selectedTask" class="bg-white border-b border-gray-200 p-4">
+                    <h2 class="text-lg font-semibold text-gray-800">任务审核</h2>
+                    <p class="text-gray-600 text-sm mt-1">{{ selectedTask.title }}</p>
+                </header>
+
+                <div v-if="!selectedTask" class="h-full flex items-center justify-center text-gray-500">
+                    <div class="text-center">
+                        <svg class="w-16 h-16 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                        </svg>
+                        <p>请从左侧选择一个任务进行审核</p>
+                    </div>
+                </div>
+
+                <div v-else class="p-6">
+                    <div v-if="reviewing" class="flex justify-center items-center h-64">
+                        <div class="text-center">
+                            <div class="loader mx-auto mb-4"></div>
+                            <p class="text-gray-600">正在审核任务...</p>
+                        </div>
+                    </div>
+
+                    <div v-else-if="selectedTask.review" class="space-y-6">
+                        <!-- 审核结论 -->
+                        <div class="bg-gray-50 rounded-lg p-4">
+                            <h3 class="font-medium text-gray-700 mb-3">审核结论</h3>
+                            <div class="flex items-center">
+                                <span :class="['review-badge', selectedTask.review.status.toLowerCase()]">
+                                    {{ selectedTask.review.status }}
+                                </span>
+                                <button @click="reviewTask" class="ml-auto bg-primary text-white px-4 py-2 rounded-lg text-sm hover:bg-primary-dark transition-colors">
+                                    重新审核
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- 审核原因 -->
+                        <div class="bg-gray-50 rounded-lg p-4">
+                            <h3 class="font-medium text-gray-700 mb-3">审核原因</h3>
+                            <div class="prose prose-sm max-w-none">
+                                <p class="text-gray-700">{{ selectedTask.review.reason }}</p>
+                            </div>
+                        </div>
+
+                        <!-- 来源信息 -->
+                        <div class="bg-gray-50 rounded-lg p-4">
+                            <h3 class="font-medium text-gray-700 mb-3">来源信息</h3>
+                            <div class="space-y-2">
+                                <div class="flex items-start">
+                                    <svg class="w-5 h-5 text-gray-500 mt-0.5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                    </svg>
+                                    <div>
+                                        <p class="text-sm font-medium text-gray-700">需求来源</p>
+                                        <p class="text-sm text-gray-600">{{ selectedTask.requirementSource }}</p>
+                                    </div>
+                                </div>
+                                <div class="flex items-start">
+                                    <svg class="w-5 h-5 text-gray-500 mt-0.5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                    </svg>
+                                    <div>
+                                        <p class="text-sm font-medium text-gray-700">投标来源</p>
+                                        <p class="text-sm text-gray-600">{{ selectedTask.bidSource }}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 详细评分 -->
+                        <div v-if="selectedTask.review.score" class="bg-gray-50 rounded-lg p-4">
+                            <h3 class="font-medium text-gray-700 mb-3">评分详情</h3>
+                            <div class="space-y-3">
+                                <div v-for="(score, key) in selectedTask.review.score" :key="key" class="flex items-center justify-between">
+                                    <span class="text-sm text-gray-600">{{ key }}</span>
+                                    <div class="flex items-center">
+                                        <div class="w-24 bg-gray-200 rounded-full h-2 mr-3">
+                                            <div class="bg-primary h-2 rounded-full" :style="{ width: score + '%' }"></div>
+                                        </div>
+                                        <span class="text-sm font-medium text-gray-700 w-12 text-right">{{ score }}%</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div v-else>
+                        <div class="bg-gray-50 rounded-lg p-8 text-center">
+                            <svg class="w-16 h-16 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
+                            </svg>
+                            <p class="text-gray-600 mb-4">此任务尚未审核</p>
+                            <button @click="reviewTask" class="bg-primary text-white px-6 py-2 rounded-lg hover:bg-primary-dark transition-colors">
+                                开始审核
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const { createApp } = Vue;
+
+        createApp({
+            data() {
+                return {
+                    requirementText: '',
+                    bidText: '',
+                    analyzing: false,
+                    reviewing: false,
+                    tasks: [],
+                    selectedTaskId: null,
+                    selectedTask: null
+                };
+            },
+            methods: {
+                updateRequirementText(e) {
+                    this.requirementText = e.target.innerHTML;
+                },
+                updateBidText(e) {
+                    this.bidText = e.target.innerHTML;
+                },
+                clearRequirementText() {
+                    this.requirementText = '';
+                    this.querySelector('.text-editor').innerHTML = '';
+                },
+                clearBidText() {
+                    this.bidText = '';
+                    this.querySelector('.text-editor').innerHTML = '';
+                },
+                async analyzeDocuments() {
+                    if (!this.requirementText || !this.bidText) return;
+
+                    this.analyzing = true;
+
+                    try {
+                        // 模拟调用LLM API生成任务
+                        await new Promise(resolve => setTimeout(resolve, 2000));
+
+                        // 生成示例任务
+                        this.tasks = [
+                            {
+                                id: 1,
+                                title: '技术方案完整性评估',
+                                description: '评估投标文件中的技术方案是否完整、可行，是否满足需求文档中的所有技术要求。',
+                                requirementSource: '需求文档第3章：技术要求',
+                                bidSource: '投标文件第4章：技术方案',
+                                review: null
+                            },
+                            {
+                                id: 2,
+                                title: '价格合理性分析',
+                                description: '分析投标报价是否合理，与市场平均水平相比是否存在偏差。',
+                                requirementSource: '需求文档第5章：预算要求',
+                                bidSource: '投标文件第6章：报价清单',
+                                review: null
+                            },
+                            {
+                                id: 3,
+                                title: '经验资质匹配度',
+                                description: '审核投标方的过往经验和资质是否满足项目要求。',
+                                requirementSource: '需求文档第2章：投标人资格',
+                                bidSource: '投标文件附件：公司资质证明',
+                                review: null
+                            }
+                        ];
+                    } catch (error) {
+                        console.error('分析失败:', error);
+                        alert('分析失败，请重试');
+                    } finally {
+                        this.analyzing = false;
+                    }
+                },
+                selectTask(taskId) {
+                    this.selectedTaskId = taskId;
+                    this.selectedTask = this.tasks.find(t => t.id === taskId);
+                },
+                async reviewTask() {
+                    if (!this.selectedTask) return;
+
+                    this.reviewing = true;
+
+                    try {
+                        // 模拟调用LLM API进行审核
+                        await new Promise(resolve => setTimeout(resolve, 3000));
+
+                        // 生成示例审核结果
+                        const reviewResults = {
+                            1: {
+                                status: '通过',
+                                reason: '投标方技术方案完整详细，包含了需求文档中要求的所有技术要素。方案设计合理，技术路线清晰，具备实施可行性。',
+                                score: {
+                                    技术完整性: 95,
+                                    可行性: 90,
+                                    创新性: 85,
+                                    匹配度: 92
+                                },
+                                requirementSource: '需求文档第3章：技术要求 - 包含架构设计、技术规范、实施计划等要求',
+                                bidSource: '投标文件第4章：技术方案 - 详细技术架构、实施方案、技术优势分析'
+                            },
+                            2: {
+                                status: '待确认',
+                                reason: '投标报价处于市场平均水平偏上，需要进一步核实成本构成。建议与投标方进行价格澄清会议。',
+                                score: {
+                                    价格合理性: 75,
+                                    成本透明度: 70,
+                                    性价比: 80,
+                                    市场对比: 78
+                                },
+                                requirementSource: '需求文档第5章：预算要求 - 预算范围500-800万',
+                                bidSource: '投标文件第6章：报价清单 - 总报价780万，明细清晰'
+                            },
+                            3: {
+                                status: '不通过',
+                                reason: '投标方在关键项目经验方面存在不足，过往3年内的5个项目经验中，仅2个符合要求。',
+                                score: {
+                                    资质匹配度: 60,
+                                    项目经验: 65,
+                                    团队能力: 70,
+                                    证书等级: 75
+                                },
+                                requirementSource: '需求文档第2章：投标人资格 - 要求3年以上相关行业经验，至少5个成功案例',
+                                bidSource: '投标文件附件：公司资质证明 - 提供3年内的5个项目，其中3个相关度不足'
+                            }
+                        };
+
+                        this.selectedTask.review = reviewResults[this.selectedTask.id];
+                    } catch (error) {
+                        console.error('审核失败:', error);
+                        alert('审核失败，请重试');
+                    } finally {
+                        this.reviewing = false;
+                    }
+                }
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>
