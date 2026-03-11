@@ -1,0 +1,15 @@
+投标文件审核系统部署报告
+==========================
+
+部署时间: 2026-03-10 17:39:34
+构建大小:  76K
+资源文件数:        3
+
+文件列表:
+dist/assets/index-Bj7Gg9Yy.css.gz
+dist/assets/index-BUqPofYp.js.gz
+dist/assets/mockData-CtZoaDQR.js.gz
+dist/index.html
+dist/vite.svg
+
+部署成功!

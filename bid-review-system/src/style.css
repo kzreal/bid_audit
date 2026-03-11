@@ -1,0 +1,44 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* 自定义样式 */
+@layer base {
+  html {
+    font-family: 'Noto Sans SC', 'Inter', system-ui, sans-serif;
+  }
+
+  body {
+    @apply bg-gray-50 text-gray-800;
+  }
+}
+
+@layer components {
+  .text-editor {
+    @apply border-2 border-gray-300 rounded-lg p-4 bg-white transition-all duration-300 focus:outline-none focus:border-blue-500 focus:shadow-md;
+  }
+
+  .task-card {
+    @apply border-l-4 border-blue-600 bg-white rounded-lg p-4 shadow-sm transition-all duration-300 cursor-pointer hover:shadow-md hover:-translate-y-0.5;
+  }
+
+  .task-card.active {
+    @apply border-l-blue-500 bg-blue-50;
+  }
+
+  .review-badge {
+    @apply inline-flex items-center px-3 py-1 rounded-full text-sm font-medium;
+  }
+
+  .review-badge.pass {
+    @apply bg-green-100 text-green-700;
+  }
+
+  .review-badge.fail {
+    @apply bg-red-100 text-red-700;
+  }
+
+  .review-badge.pending {
+    @apply bg-yellow-100 text-yellow-700;
+  }
+}
