@@ -62,9 +62,38 @@
           <svg class="w-5 h-5 text-green-500 mt-0.5 mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
           </svg>
-          <div>
+          <div class="flex-1">
             <p class="text-sm font-medium text-gray-700">投标来源</p>
-            <p class="text-sm text-gray-600 mt-1">{{ selectedTask.review.bidSource }}</p>
+            <!-- 原始来源 -->
+            <p class="text-xs text-gray-500 mt-1">{{ parsedBidSource.original }}</p>
+            <!-- 多个可折叠的解析内容 -->
+            <div v-if="parsedBidSource.hasLineNumbers" class="mt-2 space-y-2">
+              <div
+                v-for="(segment, index) in parsedBidSource.segments"
+                :key="index"
+                class="border border-gray-200 rounded-md overflow-hidden"
+              >
+                <button
+                  @click="toggleSegment(index)"
+                  class="w-full flex items-center justify-between px-3 py-2 bg-gray-50 hover:bg-gray-100 transition-colors text-left"
+                >
+                  <span class="text-xs font-medium text-gray-700">
+                    {{ segment.type === 'range' ? '行' : '行' }} {{ segment.label }} ({{ segment.lineCount }} 行内容)
+                  </span>
+                  <svg
+                    :class="['w-4 h-4 text-gray-500 transition-transform', expandedSegments[index] ? 'rotate-180' : '']"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                  </svg>
+                </button>
+                <div v-show="expandedSegments[index]" class="p-3 bg-green-50 border-t border-gray-200 max-h-64 overflow-y-auto">
+                  <p class="text-sm text-gray-700 whitespace-pre-wrap font-mono">{{ segment.content }}</p>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -101,8 +130,9 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useAppStore } from '../stores/appStore'
+import { parseSourceWithContext } from '../utils/lineParser'
 
 const store = useAppStore()
 
@@ -122,6 +152,29 @@ const emit = defineEmits(['review-task'])
 const reviewTask = () => {
   emit('review-task')
 }
+
+// 控制每个分段的展开/折叠状态
+const expandedSegments = ref({})
+
+const toggleSegment = (index) => {
+  expandedSegments.value = {
+    ...expandedSegments.value,
+    [index]: !expandedSegments.value[index]
+  }
+}
+
+// 解析投标来源，提取行号对应的内容
+const parsedBidSource = computed(() => {
+  if (!props.selectedTask?.review?.bidSource) {
+    return { original: '', segments: [], hasLineNumbers: false }
+  }
+  return parseSourceWithContext(props.selectedTask.review.bidSource, store.contextText)
+})
+
+// 监听任务变化，重置展开状态
+watch(() => props.selectedTask?.review?.bidSource, () => {
+  expandedSegments.value = {}
+})
 
 // 格式化日期
 const formatDate = (date) => {
