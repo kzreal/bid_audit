@@ -51,7 +51,11 @@
           class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
         >
           <span v-if="store.loading" class="inline-flex items-center">
-            <div class="loader mr-2"></div>
+            <span class="loading-dots mr-2">
+              <span></span>
+              <span></span>
+              <span></span>
+            </span>
             审核中...
           </span>
           <span v-else>批量审核未审核任务</span>
@@ -134,3 +138,39 @@ const clearReviews = () => {
   }
 }
 </script>
+
+<style scoped>
+/* 加载动画 - 三脉冲点 */
+.loading-dots {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.loading-dots span {
+  width: 6px;
+  height: 6px;
+  background: linear-gradient(135deg, #2563eb, #3b82f6);
+  border-radius: 50%;
+  animation: loading-pulse 1.4s ease-in-out infinite both;
+}
+
+.loading-dots span:nth-child(1) {
+  animation-delay: -0.32s;
+}
+
+.loading-dots span:nth-child(2) {
+  animation-delay: -0.16s;
+}
+
+@keyframes loading-pulse {
+  0%, 80%, 100% {
+    transform: scale(0);
+    opacity: 0.5;
+  }
+  40% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+</style>

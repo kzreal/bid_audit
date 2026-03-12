@@ -36,50 +36,55 @@
           class="w-full bg-blue-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
         >
           <span v-if="store.loading" class="inline-flex items-center">
-            <div class="loader mr-2"></div>
+            <span class="loading-dots mr-2">
+              <span></span>
+              <span></span>
+              <span></span>
+            </span>
             分析中...
           </span>
           <span v-else>开始分析</span>
         </button>
-
-        <!-- 切换模式按钮 -->
-        <button
-          @click="toggleMode"
-          class="w-full mt-2 bg-gray-200 text-gray-700 py-2 px-4 rounded-lg font-medium hover:bg-gray-300 transition-colors"
-        >
-          当前使用: {{ useMock ? '模拟数据' : '真实 API' }}
-        </button>
-
-        <!-- API 状态 -->
-        <div v-if="store.apiStatus" class="mt-4 p-3 bg-gray-50 rounded-lg">
-          <p class="text-xs text-gray-600">
-            API 状态: {{ store.apiStatus.status || 'unknown' }}
-            <span v-if="store.apiStatus.message" class="ml-2">
-              - {{ store.apiStatus.message }}
-            </span>
-          </p>
-        </div>
       </div>
     </div>
 
     <!-- 中间：任务列表 -->
     <div class="w-2/5 bg-gray-50 border-r border-gray-200 flex flex-col">
       <header class="bg-white border-b border-gray-200 p-4">
-        <h2 class="text-lg font-semibold text-gray-800">任务列表</h2>
-        <p class="text-gray-600 text-sm mt-1">
-          共 {{ tasks.length }} 个任务
-          <span v-if="store.taskStats.reviewed" class="ml-2">
-            (已审核: {{ store.taskStats.reviewed }})
-          </span>
-        </p>
+        <div class="flex items-center justify-between">
+          <div>
+            <h2 class="text-lg font-semibold text-gray-800">任务列表</h2>
+            <p class="text-gray-600 text-sm mt-1">
+              共 {{ tasks.length }} 个任务
+              <span v-if="store.taskStats.reviewed" class="ml-2">
+                (已审核: {{ store.taskStats.reviewed }})
+              </span>
+            </p>
+          </div>
+          <!-- 全部审核按钮 -->
+          <button
+            @click="handleReviewAll"
+            :disabled="store.loading"
+            class="bg-blue-600 text-white px-3 py-1.5 rounded-lg text-sm hover:bg-blue-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center"
+          >
+            <span v-if="store.loading" class="inline-flex items-center">
+              <span class="loading-dots mr-2">
+                <span></span>
+                <span></span>
+                <span></span>
+              </span>
+              审核中...
+            </span>
+            <span v-else>全部审核 ({{ tasks.filter(t => !t.review).length }})</span>
+          </button>
+        </div>
       </header>
 
       <div class="flex-1 overflow-y-auto">
         <task-list
           :tasks="tasks"
           :selected-task-id="store.selectedTaskId"
-          @select-task="store.selectTask"
-          @start-review="handleStartReview"
+          @select-task="handleSelectTask"
         />
       </div>
     </div>
@@ -103,18 +108,38 @@
 </template>
 
 <style scoped>
-.loader {
-  border: 3px solid #f3f4f6;
-  border-top: 3px solid #2563eb;
-  border-radius: 50%;
-  width: 20px;
-  height: 20px;
-  animation: spin 1s linear infinite;
+/* 加载动画 - 三脉冲点 */
+.loading-dots {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
 }
 
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+.loading-dots span {
+  width: 6px;
+  height: 6px;
+  background: linear-gradient(135deg, #2563eb, #3b82f6);
+  border-radius: 50%;
+  animation: loading-pulse 1.4s ease-in-out infinite both;
+}
+
+.loading-dots span:nth-child(1) {
+  animation-delay: -0.32s;
+}
+
+.loading-dots span:nth-child(2) {
+  animation-delay: -0.16s;
+}
+
+@keyframes loading-pulse {
+  0%, 80%, 100% {
+    transform: scale(0);
+    opacity: 0.5;
+  }
+  40% {
+    transform: scale(1);
+    opacity: 1;
+  }
 }
 </style>
 
@@ -171,27 +196,32 @@ const tasks = computed(() => store.tasks)
 // 选中的任务（从 store 获取）
 const selectedTask = computed(() => store.selectedTask)
 
-// 模式切换
-const useMock = ref(false)
-
-const toggleMode = () => {
-  useMock.value = !useMock.value
-}
 
 // 开始分析
 const startAnalysis = async () => {
   if (!store.canAnalyze) return
 
   try {
-    await store.generateTasks(useMock.value)
+    await store.generateTasks(false)
   } catch (error) {
     console.error('生成任务失败:', error)
   }
 }
 
-// 处理开始审核
-const handleStartReview = (task) => {
-  store.selectTask(task.id)
+// 处理选择任务（自动开始审核）
+const handleSelectTask = async (taskId) => {
+  store.selectTask(taskId)
+
+  // 如果任务未审核，自动开始审核
+  const task = store.tasks.find(t => t.id === taskId)
+  if (task && !task.review && !store.loading) {
+    try {
+      store.startReviewing()
+      await store.reviewTask(taskId, false)
+    } catch (error) {
+      console.error('审核任务失败:', error)
+    }
+  }
 }
 
 // 处理审核任务
@@ -200,9 +230,27 @@ const handleReviewTask = async () => {
 
   try {
     store.startReviewing()
-    await store.reviewTask(store.selectedTaskId, useMock.value)
+    await store.reviewTask(store.selectedTaskId, false)
   } catch (error) {
     console.error('审核任务失败:', error)
+  }
+}
+
+// 全部审核
+const handleReviewAll = async () => {
+  const unreviewedTasks = store.tasks.filter(task => !task.review)
+
+  if (unreviewedTasks.length === 0) {
+    return
+  }
+
+  for (const task of unreviewedTasks) {
+    try {
+      store.selectTask(task.id)
+      await store.reviewTask(task.id, false)
+    } catch (error) {
+      console.error(`审核任务 ${task.id} 失败:`, error)
+    }
   }
 }
 </script>

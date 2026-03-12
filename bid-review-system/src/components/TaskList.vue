@@ -39,42 +39,18 @@
             </span>
           </div>
 
-          <div class="flex items-center gap-2">
-            <button
-              v-if="!task.review"
-              @click.stop="startReview(task)"
-              :disabled="store.loading && store.selectedTaskId === task.id"
-              class="text-xs bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
-            >
-              <span v-if="store.loading && store.selectedTaskId === task.id" class="inline-flex items-center">
-                <div class="loader mr-1"></div>
-                审核中
-              </span>
-              <span v-else>开始审核</span>
-            </button>
-            <span v-if="task.review" class="text-xs text-gray-400">
-              已审核
+          <!-- 审核中状态 -->
+          <span v-if="store.loading && store.selectedTaskId === task.id && !task.review" class="text-xs text-blue-600 flex items-center">
+            <span class="loading-dots mr-2">
+              <span></span>
+              <span></span>
+              <span></span>
             </span>
-          </div>
-        </div>
-
-        <!-- 审核评分 -->
-        <div v-if="task.review?.score" class="mt-3 pt-3 border-t border-gray-200">
-          <div class="flex items-center justify-between text-xs">
-            <span class="text-gray-600">评分详情</span>
-            <span class="font-medium text-gray-700">
-              平均分: {{ calculateAverageScore(task.review.score) }}
-            </span>
-          </div>
-          <div class="mt-2 space-y-1">
-            <div v-for="(score, key) in task.review.score" :key="key" class="flex items-center">
-              <span class="text-xs text-gray-600 w-16">{{ getScoreLabel(key) }}</span>
-              <div class="flex-1 bg-gray-200 rounded-full h-1.5 ml-2">
-                <div class="bg-blue-600 h-1.5 rounded-full" :style="{ width: score + '%' }"></div>
-              </div>
-              <span class="text-xs text-gray-700 ml-2 w-8 text-right">{{ score }}</span>
-            </div>
-          </div>
+            审核中...
+          </span>
+          <span v-else-if="task.review" class="text-xs text-gray-400">
+            已审核
+          </span>
         </div>
       </div>
     </transition-group>
@@ -111,14 +87,10 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['select-task', 'start-review'])
+const emit = defineEmits(['select-task'])
 
 const selectTask = (task) => {
   emit('select-task', task.id)
-}
-
-const startReview = (task) => {
-  emit('start-review', task)
 }
 
 const getStatusClass = (status) => {
@@ -179,28 +151,6 @@ const formatDate = (date) => {
   return d.toLocaleDateString('zh-CN')
 }
 
-// 计算平均分
-const calculateAverageScore = (score) => {
-  if (!score || typeof score !== 'object') return 0
-  const values = Object.values(score)
-  if (values.length === 0) return 0
-  return Math.round(values.reduce((sum, val) => sum + val, 0) / values.length)
-}
-
-// 获取评分标签
-const getScoreLabel = (key) => {
-  const labelMap = {
-    technical: '技术',
-    price: '价格',
-    experience: '经验',
-    quality: '质量',
-    schedule: '进度',
-    service: '服务',
-    solution: '方案',
-    innovation: '创新'
-  }
-  return labelMap[key] || key
-}
 </script>
 
 <style scoped>
@@ -209,5 +159,39 @@ const getScoreLabel = (key) => {
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+/* 加载动画 - 三脉冲点 */
+.loading-dots {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.loading-dots span {
+  width: 6px;
+  height: 6px;
+  background: linear-gradient(135deg, #2563eb, #3b82f6);
+  border-radius: 50%;
+  animation: loading-pulse 1.4s ease-in-out infinite both;
+}
+
+.loading-dots span:nth-child(1) {
+  animation-delay: -0.32s;
+}
+
+.loading-dots span:nth-child(2) {
+  animation-delay: -0.16s;
+}
+
+@keyframes loading-pulse {
+  0%, 80%, 100% {
+    transform: scale(0);
+    opacity: 0.5;
+  }
+  40% {
+    transform: scale(1);
+    opacity: 1;
+  }
 }
 </style>

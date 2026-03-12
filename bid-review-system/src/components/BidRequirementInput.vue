@@ -16,7 +16,7 @@
 
     <!-- 可编辑文本区域 -->
     <textarea
-      class="text-editor w-full h-64 resize-none"
+      class="text-editor w-full h-28 resize-none"
       v-model="store.requirementText"
       placeholder="在此粘贴或输入招标信息..."
     ></textarea>

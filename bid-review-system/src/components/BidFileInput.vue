@@ -32,7 +32,7 @@
 
     <!-- 可编辑文本区域 -->
     <textarea
-      class="text-editor w-full h-64 resize-none"
+      class="text-editor w-full h-48 resize-none"
       v-model="store.bidText"
       placeholder="在此粘贴或输入投标文件内容..."
     ></textarea>

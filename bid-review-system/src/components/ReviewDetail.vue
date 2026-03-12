@@ -10,7 +10,7 @@
 
   <div v-else-if="reviewing" class="flex justify-center items-center h-64">
     <div class="text-center">
-      <div class="loader mx-auto mb-4"></div>
+      <div class="loading-ring mx-auto mb-4"></div>
       <p class="text-gray-600">正在审核任务...</p>
     </div>
   </div>
@@ -83,21 +83,19 @@
 
   <div v-else>
     <div class="bg-gray-50 rounded-lg p-8 text-center">
-      <svg class="w-16 h-16 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
-      </svg>
-      <p class="text-gray-600 mb-4">此任务尚未审核</p>
-      <button
-        @click="reviewTask"
-        :disabled="store.loading"
-        class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
-      >
-        <span v-if="store.loading" class="inline-flex items-center">
-          <div class="loader mr-2"></div>
-          审核中...
-        </span>
-        <span v-else>开始审核</span>
-      </button>
+      <!-- 审核中状态 -->
+      <div v-if="store.loading">
+        <div class="loading-ring mx-auto mb-4" style="width: 48px; height: 48px;"></div>
+        <p class="text-gray-600">正在审核任务...</p>
+      </div>
+      <!-- 等待审核状态 -->
+      <div v-else>
+        <svg class="w-16 h-16 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
+        </svg>
+        <p class="text-gray-600">此任务尚未审核</p>
+        <p class="text-sm text-gray-400 mt-2">请点击任务列表中的任务开始审核</p>
+      </div>
     </div>
   </div>
 </template>
@@ -140,8 +138,9 @@ const formatDateTime = (date) => {
 </script>
 
 <style scoped>
-.loader {
-  border: 3px solid #f3f4f6;
+/* 旋转环形加载动画 */
+.loading-ring {
+  border: 3px solid #e5e7eb;
   border-top: 3px solid #2563eb;
   border-radius: 50%;
   width: 40px;
