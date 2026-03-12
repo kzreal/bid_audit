@@ -6,7 +6,7 @@
 
     <!-- 文件上传区域 -->
     <div
-      class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors mb-3"
+      class="border-2 border-dashed border-gray-300 rounded-lg p-3 text-center hover:border-gray-400 transition-colors mb-3"
       @drop="handleDrop"
       @dragover.prevent
       @dragenter.prevent
@@ -18,21 +18,21 @@
         @change="handleFileSelect"
         class="hidden"
       />
-      <svg class="w-12 h-12 mx-auto mb-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <svg class="w-8 h-8 mx-auto mb-1 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
       </svg>
-      <p class="text-sm text-gray-600">
+      <p class="text-xs text-gray-600">
         拖拽文件到此处或
         <button @click="$refs.fileInput.click()" class="text-blue-600 hover:underline">
           选择文件
         </button>
       </p>
-      <p class="text-xs text-gray-500 mt-1">支持 .md, .txt 格式</p>
+      <p class="text-[10px] text-gray-500 mt-0.5">支持 .md, .txt 格式</p>
     </div>
 
     <!-- 可编辑文本区域 -->
     <textarea
-      class="text-editor w-full h-48 resize-none"
+      class="text-editor w-full h-56 resize-none"
       v-model="store.bidText"
       placeholder="在此粘贴或输入投标文件内容..."
     ></textarea>

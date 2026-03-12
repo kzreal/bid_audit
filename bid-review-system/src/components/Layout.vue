@@ -1,7 +1,7 @@
 <template>
   <div class="main-container h-screen flex">
     <!-- 左侧：招标信息输入 -->
-    <div class="w-1/4 bg-white border-r border-gray-200 flex flex-col">
+    <div class="w-[35%] bg-white border-r border-gray-200 flex flex-col">
       <header class="bg-blue-600 text-white p-4">
         <h1 class="text-xl font-semibold">投标文件审核系统</h1>
         <p class="text-blue-100 text-sm mt-1">智能分析，精准审核</p>
@@ -49,7 +49,7 @@
     </div>
 
     <!-- 中间：任务列表 -->
-    <div class="w-2/5 bg-gray-50 border-r border-gray-200 flex flex-col">
+    <div class="w-[30%] bg-gray-50 border-r border-gray-200 flex flex-col">
       <header class="bg-white border-b border-gray-200 p-4">
         <div class="flex items-center justify-between">
           <div>
