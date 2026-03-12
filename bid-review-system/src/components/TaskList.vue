@@ -14,19 +14,14 @@
       <div v-for="task in filteredTasks" :key="task.id"
            :class="['task-card', { active: selectedTaskId === task.id }]"
            @click="selectTask(task)">
-        <div class="flex justify-between items-start mb-2">
-          <div class="flex-1">
-            <h3 class="font-medium text-gray-800">{{ task.title }}</h3>
-            <p class="text-xs text-gray-400 mt-1">任务 {{ task.id }}</p>
-          </div>
-          <span class="text-xs text-gray-400">
-            {{ formatDate(task.createdAt) }}
-          </span>
+        <!-- 任务标题和描述合并为一行 -->
+        <div class="mb-3">
+          <h3 class="font-medium text-gray-800 text-sm">
+            任务{{ task.id }}: {{ task.description }}
+          </h3>
         </div>
 
-        <p class="text-sm text-gray-600 mb-3 line-clamp-2">{{ task.description }}</p>
-
-        <!-- 状态和操作 -->
+        <!-- 状态 -->
         <div class="flex justify-between items-center">
           <div class="flex items-center">
             <span v-if="!task.review" class="text-xs text-gray-500">
@@ -143,14 +138,6 @@ const taskStats = computed(() => {
 
   return { total, reviewed, passed, failed, pending }
 })
-
-// 格式化日期
-const formatDate = (date) => {
-  if (!date) return ''
-  const d = new Date(date)
-  return d.toLocaleDateString('zh-CN')
-}
-
 </script>
 
 <style scoped>
