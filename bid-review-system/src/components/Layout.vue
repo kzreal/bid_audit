@@ -90,13 +90,13 @@
     </div>
 
     <!-- 右侧：审核详情 -->
-    <div class="flex-1 bg-white">
-      <header v-if="selectedTask" class="bg-white border-b border-gray-200 p-4">
+    <div class="flex-1 bg-white flex flex-col overflow-hidden">
+      <header v-if="selectedTask" class="bg-white border-b border-gray-200 p-4 flex-shrink-0">
         <h2 class="text-lg font-semibold text-gray-800">任务审核</h2>
         <p class="text-gray-600 text-sm mt-1">{{ selectedTask.title }}</p>
       </header>
 
-      <div class="p-6">
+      <div class="flex-1 overflow-y-auto p-6">
         <review-detail
           :selected-task="selectedTask"
           :reviewing="store.reviewing"
