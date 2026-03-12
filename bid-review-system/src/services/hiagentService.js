@@ -256,11 +256,34 @@ export const reviewTask = async (params) => {
   return retryRequest(() =>
     http.post('/hiagent/review-task', requestData)
   ).then(response => {
+    // 后端返回格式: {code: 200, data: {results: [...]}, status: "...", message: "...", raw_text: "..."}
+    // 需要标准化为前端期望的格式
+
     // 如果响应是文本格式，解析为结构化结果
     if (typeof response === 'string') {
       return parseReviewText(response)
     }
-    // 如果响应已经是对象格式，直接返回
+
+    // 如果响应是对象，处理后端返回的标准格式
+    if (typeof response === 'object' && response !== null) {
+      // 优先使用 data.results 数组中的数据
+      let resultsArray = null
+      if (response.data && response.data.results && Array.isArray(response.data.results)) {
+        resultsArray = response.data.results
+      }
+
+      if (resultsArray && resultsArray.length >= 3) {
+        return {
+          status: resultsArray[0].conclusion || response.status || '待确认',
+          reason: resultsArray[1].reason || '暂无原因说明',
+          bidSource: resultsArray[2].evidence || '待补充',
+          requirementSource: '招标要求',
+          createdAt: new Date()
+        }
+      }
+    }
+
+    // 其他情况，直接返回响应
     return response
   }).catch(error => {
     console.error('审核任务 API 调用失败:', error)

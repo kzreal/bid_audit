@@ -18,49 +18,35 @@ CORS(app)  # 允许跨域请求
 
 # 从环境变量或配置文件读取配置
 def get_config():
-    # 首先尝试从本地 .env 文件读取
-    api_url = None
-    task_creator_api_key = None
-    task_auditor_api_key = None
-    user_id = 'user001'
+    # 首先尝试从环境变量读取
+    api_url = os.getenv('VITE_API_BASE_URL')
+    api_key = os.getenv('VITE_HIAGENT_API_KEY')
+    user_id = os.getenv('VITE_HIAGENT_USER_ID', 'user001')
 
-    try:
-        with open('.env', 'r', encoding='utf-8') as f:
-            for line in f:
-                line = line.strip()
-                if line.startswith('VITE_API_BASE_URL='):
-                    api_url = line.split('=', 1)[1]
-                elif line.startswith('VITE_TASK_CREATOR_API_KEY='):
-                    task_creator_api_key = line.split('=', 1)[1]
-                elif line.startswith('VITE_TASK_AUDITOR_API_KEY='):
-                    task_auditor_api_key = line.split('=', 1)[1]
-                elif line.startswith('VITE_HIAGENT_USER_ID='):
-                    user_id = line.split('=', 1)[1]
-    except:
-        pass
+    # 如果环境变量没有设置，尝试从 frontend 的 .env.development 读取
+    if not api_url or api_key == 'your_api_key_here':
+        try:
+            with open('../bid-review-system/.env.development', 'r', encoding='utf-8') as f:
+                for line in f:
+                    line = line.strip()
+                    if line.startswith('VITE_API_BASE_URL='):
+                        api_url = line.split('=', 1)[1]
+                    elif line.startswith('VITE_HIAGENT_API_KEY='):
+                        api_key = line.split('=', 1)[1]
+        except:
+            # 如果都失败，使用默认值
+            api_url = 'https://prd-ai-studio.chint.com/api/proxy/api/v1'
+            api_key = 'd6ntpsf4piphvinbnmh0'
+            user_id = '250701283'
 
-    # 如果本地文件没有设置，尝试从环境变量读取
-    if not api_url:
-        api_url = os.getenv('VITE_API_BASE_URL')
-    if not task_creator_api_key:
-        task_creator_api_key = os.getenv('VITE_TASK_CREATOR_API_KEY', 'd6ntpsf4piphvinbnmh0')
-    if not task_auditor_api_key:
-        task_auditor_api_key = os.getenv('VITE_TASK_AUDITOR_API_KEY', 'd6oo7pn4piphvinbrb6g')
-    if user_id == 'user001':
-        user_id = os.getenv('VITE_HIAGENT_USER_ID', '250701283')
+    return api_url, api_key, user_id
 
-    # 如果都失败，使用默认值
-    if not api_url:
-        api_url = 'https://prd-ai-studio.chint.com/api/proxy/api/v1'
+API_URL, API_KEY, USER_ID = get_config()
+print(f"Config: API_URL={API_URL}, API_KEY={API_KEY}, USER_ID={USER_ID}")
 
-    return api_url, task_creator_api_key, task_auditor_api_key, user_id
-
-API_URL, TASK_CREATOR_API_KEY, TASK_AUDITOR_API_KEY, USER_ID = get_config()
-print(f"Config: API_URL={API_URL}, TASK_CREATOR_API_KEY={TASK_CREATOR_API_KEY}, TASK_AUDITOR_API_KEY={TASK_AUDITOR_API_KEY}, USER_ID={USER_ID}")
-
-# 初始化 HiAgent 客户端，使用不同的 API key
-task_creator = TaskCreator(API_URL, TASK_CREATOR_API_KEY, USER_ID)
-task_auditor = TaskAuditor(API_URL, TASK_AUDITOR_API_KEY, USER_ID)
+# 初始化 HiAgent 客户端
+task_creator = TaskCreator(API_URL, API_KEY, USER_ID)
+task_auditor = TaskAuditor(API_URL, API_KEY, USER_ID)
 
 
 @app.route('/hiagent/debug', methods=['POST'])
@@ -219,22 +205,14 @@ def review_task():
     """审核任务"""
     try:
         data = request.get_json()
-        task_input = data.get('task')
+        task = data.get('task')
         context = data.get('context')
 
-        if not task_input:
+        if not task:
             return jsonify({
                 'code': 400,
                 'message': '任务不能为空'
             }), 400
-
-        # 如果 task 是对象，从中提取任务描述
-        if isinstance(task_input, dict):
-            # 优先使用 description，其次使用 title
-            task = task_input.get('description', task_input.get('title', ''))
-        else:
-            # 如果是字符串，直接使用
-            task = str(task_input)
 
         if not context:
             return jsonify({
@@ -255,39 +233,93 @@ def review_task():
 
         print(f"HiAgent 返回的审核结果：{result_text}")
 
-        # 使用 TaskAuditor.parse_audit_result 解析审核结果
-        # 新格式: {"results": [{"conclusion": "通过"}, {"reason": "..."}, {"evidence": "页码范围"}]}
-        parsed = TaskAuditor.parse_audit_result(result_text)
-        conclusion = parsed.get('conclusion', '')
-        reason = parsed.get('reason', '')
-        evidence = parsed.get('evidence', '')
+        # 解析嵌套的 JSON 结构
+        # 返回格式: {"content": "{\n    \"结论\": \"通过\",\n    \"原因\": \"...\",\n    \"来源\": \"...\"\n}"}
+        def extract_nested_result(result_str):
+            """
+            去序列化嵌套的 JSON 结构，提取结论、原因、来源
 
-        print(f"解析结果: 结论={conclusion}, 原因={reason[:50] if reason else ''}..., 证据={evidence[:50] if evidence else ''}...")
+            结构: {"content": "{\n    \"结论\": \"通过\",\n    \"原因\": \"...\",\n    \"来源\": \"...\"\n}"}
+            """
+            try:
+                import json
+                # 第一层解析，获取 content 字段
+                outer_json = json.loads(result_str)
+                content_str = outer_json.get('content', '')
+
+                if not content_str:
+                    print(f"第一层解析后没有 content 字段")
+                    return None
+
+                print(f"第二层待解析的字符串: {content_str[:200]}...")
+
+                # 第二层解析 content 字段（它本身是一个 JSON 字符串）
+                inner_json = json.loads(content_str)
+
+                # 提取字段
+                conclusion = inner_json.get('结论', '')
+                reason = inner_json.get('原因', '')
+                source = inner_json.get('来源', '')
+
+                reason_preview = reason[:50] if reason else ''
+                source_preview = source[:50] if source else ''
+                print(f"提取成功: 结论={conclusion}, 原因={reason_preview}..., 来源={source_preview}...")
+
+                return {
+                    'conclusion': conclusion,
+                    'reason': reason,
+                    'source': source
+                }
+            except Exception as e:
+                print(f"去序列化失败: {e}")
+                return None
+
+        # 去序列化
+        nested_result = extract_nested_result(result_text)
+
+        if not nested_result:
+            # 如果去序列化失败，使用原始解析方法
+            parsed = TaskAuditor.parse_audit_result(result_text)
+            conclusion = parsed['conclusion']
+            reason = parsed['reason'] or ''
+            source = parsed['source'] or ''
+        else:
+            conclusion = nested_result['conclusion']
+            reason = nested_result['reason']
+            source = nested_result['source']
 
         # 根据结论内容判断状态
         status = '待确认'  # 默认状态
         if conclusion:
-            # 检查是否包含"通过"、"符合"等关键词
+            # 检查是否包含"通过"、"通过"等关键词
             if any(keyword in conclusion for keyword in ['通过', '符合', '合格', '满足']):
                 status = '通过'
             elif any(keyword in conclusion for keyword in ['不通过', '不符合', '不合格', '未通过']):
                 status = '不通过'
+            else:
+                status = '待确认'
 
-        # 使用 Python 的 datetime 获取当前时间
-        from datetime import datetime
+        # 将原因映射为 requirementSource 和 bidSource
+        requirement_source = reason
+        bid_source = source
 
-        # 返回符合 api.md 定义的格式
         return jsonify({
             'code': 200,
             'message': '任务审核成功',
             'data': {
-                'results': [
-                    {'conclusion': conclusion},
-                    {'reason': reason},
-                    {'evidence': evidence}
-                ]
+                'status': status,
+                'result': conclusion,
+                'conclusion': conclusion,
+                'detail': conclusion,
+                'explanation': reason,
+                'reason': reason,
+                'requirement': reason,
+                'requirementSource': requirement_source,
+                'bid': bid_source,
+                'bidSource': bid_source,
+                'proposal': bid_source,
+                'createdAt': new Date().isoformat(),
             },
-            'status': status,
             'raw_text': result_text
         })
 

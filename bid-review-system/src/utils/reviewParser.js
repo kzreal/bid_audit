@@ -109,6 +109,33 @@ function normalizeReviewResult(data) {
     createdAt: data.createdAt || new Date()
   }
 
+  // 处理 results 数组格式（后端返回的格式）
+  // 后端返回: {code: 200, data: {results: [...]}, status: "...", ...}
+  // 需要从 data.results 中提取数据
+  let resultsArray = null
+
+  // 优先使用 data.results（后端返回的格式）
+  if (data.data && data.data.results && Array.isArray(data.data.results)) {
+    resultsArray = data.data.results
+  } else if (data.results && Array.isArray(data.results)) {
+    resultsArray = data.results
+  }
+
+  if (resultsArray) {
+    if (resultsArray.length >= 3) {
+      // 三个独立对象格式：[{"conclusion": "..."}, {"reason": "..."}, {"evidence": "..."}]
+      resultsArray[0] && resultsArray[0].conclusion && (result.status = resultsArray[0].conclusion)
+      resultsArray[1] && resultsArray[1].reason && (result.reason = resultsArray[1].reason)
+      resultsArray[2] && resultsArray[2].evidence && (result.bidSource = resultsArray[2].evidence)
+    } else if (resultsArray.length === 1 && typeof resultsArray[0] === 'object') {
+      // 单对象格式：{"conclusion": "...", "reason": "...", "evidence": "..."}
+      const item = resultsArray[0]
+      if (item.conclusion) result.status = item.conclusion
+      if (item.reason) result.reason = item.reason
+      if (item.evidence) result.bidSource = item.evidence
+    }
+  }
+
   // 标准化状态值
   const statusMap = {
     'pass': '通过',
