@@ -4,6 +4,20 @@
  */
 
 /**
+ * 从文本行中提取注释中的行号
+ * @param {string} line - 文本行
+ * @returns {number|null} 返回提取的行号，没有则返回null
+ */
+export function extractCommentLineNumber(line) {
+  // 匹配 <!-- 123 --> 格式的注释
+  const commentMatch = line.match(/<!--\s*(\d+)\s*-->/)
+  if (commentMatch) {
+    return parseInt(commentMatch[1])
+  }
+  return null
+}
+
+/**
  * 解析来源字符串中的行号
  * 支持以下格式：
  * - "1" - 单行
@@ -165,6 +179,7 @@ export function getLinesContent(text, lineNumbers) {
 
 /**
  * 解析来源并返回格式化的内容
+ * 支持从带有注释的文本中提取正确的内容（忽略空行）
  * @param {string} source - 来源字符串
  * @param {string} context - 完整的文本内容
  * @returns {Object} 包含 original（原始来源）和 segments（解析后的分段内容）的对象
@@ -181,7 +196,33 @@ export function parseSourceWithContext(source, context) {
   }
 
   const segments = []
-  const lines = context.split('\n')
+
+  // 处理带注释的文本，过滤空行并映射实际行号
+  const filteredLines = []
+  const lineMap = new Map() // 映射显示行号到filteredLines中的索引
+  const commentLineMap = new Map() // 映射注释行号到显示行号
+
+  const allLines = context.split('\n')
+  let displayLineNum = 1
+  let filteredLineIndex = 0
+
+  for (let i = 0; i < allLines.length; i++) {
+    const line = allLines[i]
+    if (line.trim()) {
+      // 只保留非空行
+      filteredLines.push(line)
+      lineMap.set(displayLineNum, filteredLineIndex)
+
+      // 提取注释中的行号
+      const commentLineNumber = extractCommentLineNumber(line)
+      if (commentLineNumber) {
+        commentLineMap.set(commentLineNumber, displayLineNum)
+      }
+
+      displayLineNum++
+      filteredLineIndex++
+    }
+  }
 
   // 遍历行号数组，为每个范围创建分段
   let i = 0
@@ -191,18 +232,24 @@ export function parseSourceWithContext(source, context) {
 
     if (next !== undefined && next > current) {
       // 是一个范围：current 到 next
-      const startLine = current
-      const endLine = next
-      const startLineIndex = startLine - 1
-      const endLineIndex = Math.min(endLine - 1, lines.length - 1)
+      // 先尝试从注释行号映射中查找
+      let startDisplayLine = commentLineMap.get(current)
+      let endDisplayLine = commentLineMap.get(next)
 
-      if (startLineIndex < lines.length) {
-        const rangeLines = lines.slice(startLineIndex, endLineIndex + 1).map(l => l.trim())
+
+      // 如果注释行号映射存在，使用映射后的行号；否则使用原始行号
+      const startLineIndex = startDisplayLine !== undefined ? lineMap.get(startDisplayLine) : lineMap.get(current)
+      const endLineIndex = endDisplayLine !== undefined ? lineMap.get(endDisplayLine) : lineMap.get(next)
+
+
+      const adjustedEndLineIndex = endLineIndex !== undefined ? Math.min(endLineIndex, filteredLines.length - 1) : undefined
+      if (startLineIndex !== undefined && endLineIndex !== undefined && startLineIndex < filteredLines.length && adjustedEndLineIndex >= 0) {
+        const rangeLines = filteredLines.slice(startLineIndex, adjustedEndLineIndex + 1).map(l => l.trim())
         const content = rangeLines.join('\n')
         segments.push({
           type: 'range',
-          label: `${startLine}-${endLine}`,
-          lineNumbers: [startLine, endLine],
+          label: `${current}-${next}`,
+          lineNumbers: [current, next],
           content: content,
           lineCount: rangeLines.length
         })
@@ -211,13 +258,17 @@ export function parseSourceWithContext(source, context) {
     } else {
       // 单行
       const lineNum = current
-      const index = lineNum - 1
-      if (index >= 0 && index < lines.length) {
+      // 先尝试从注释行号映射中查找
+      const displayLineNum = commentLineMap.get(lineNum)
+      const actualLineIndex = displayLineNum !== undefined ? lineMap.get(displayLineNum) : lineMap.get(lineNum)
+
+
+      if (actualLineIndex !== undefined && actualLineIndex >= 0 && actualLineIndex < filteredLines.length) {
         segments.push({
           type: 'single',
           label: `${lineNum}`,
           lineNumbers: [lineNum],
-          content: lines[index].trim(),
+          content: filteredLines[actualLineIndex].trim(),
           lineCount: 1
         })
       }
@@ -234,6 +285,7 @@ export function parseSourceWithContext(source, context) {
 }
 
 export default {
+  extractCommentLineNumber,
   parseLineNumbers,
   getLineContent,
   getLineRangeContent,
