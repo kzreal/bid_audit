@@ -20,8 +20,16 @@
     <div class="bg-gray-50 rounded-lg p-4">
       <h3 class="font-medium text-gray-700 mb-3">审核结论</h3>
       <div class="flex items-center justify-between">
-        <span :class="['review-badge', selectedTask.review.status.toLowerCase()]">
-          {{ selectedTask.review.status }}
+        <span class="text-xl">
+          <span v-if="selectedTask.review.status === '通过'" class="text-green-600">
+            ✅ 通过
+          </span>
+          <span v-else-if="selectedTask.review.status === '不通过'" class="text-red-600">
+            ❌ 不通过
+          </span>
+          <span v-else class="text-yellow-600">
+            ❓ 待确认
+          </span>
         </span>
         <button
           @click="reviewTask"
