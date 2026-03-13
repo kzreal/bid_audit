@@ -1,8 +1,9 @@
 import axios from 'axios'
 
 // 创建 axios 实例
+// 开发环境使用代理，baseURL 设为空，请求通过 Vite 代理转发到本地后端
 const http = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'https://prd-ai-studio.chint.com/api/proxy/api/v1',
+  baseURL: '',
   timeout: 30000,
   headers: {
     'Content-Type': 'application/json'
