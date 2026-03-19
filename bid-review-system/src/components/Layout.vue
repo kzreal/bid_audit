@@ -91,9 +91,14 @@
 
     <!-- 右侧：审核详情 -->
     <div class="flex-1 bg-white flex flex-col overflow-hidden">
-      <header v-if="selectedTask" class="bg-white border-b border-gray-200 p-4 flex-shrink-0">
-        <h2 class="text-lg font-semibold text-gray-800">任务审核</h2>
-        <p class="text-gray-600 text-sm mt-1">{{ selectedTask.title }}</p>
+      <header v-if="selectedTask" class="bg-white border-b border-gray-200 p-4 flex-shrink-0 flex justify-between items-center">
+        <div>
+          <h2 class="text-lg font-semibold text-gray-800">任务审核</h2>
+          <p class="text-gray-600 text-sm mt-1">{{ selectedTask.title }}</p>
+        </div>
+        <p v-if="selectedTask.review && selectedTask.review.createdAt" class="text-sm text-gray-500">
+          审核时间: {{ formatDateTime(selectedTask.review.createdAt) }}
+        </p>
       </header>
 
       <div class="flex-1 overflow-y-auto p-6">
@@ -169,6 +174,12 @@ const tasks = computed(() => store.tasks)
 // 选中的任务（从 store 获取）
 const selectedTask = computed(() => store.selectedTask)
 
+// 格式化日期时间
+const formatDateTime = (date) => {
+  if (!date) return ''
+  const d = new Date(date)
+  return d.toLocaleString('zh-CN')
+}
 
 // 开始分析
 const startAnalysis = async () => {

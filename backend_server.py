@@ -289,9 +289,9 @@ def review_task_slices():
         task_input = data.get('task')
         slices = data.get('slices', [])  # 切片内容数组
 
-        # 验证切片数量（最多 30 个）
-        if len(slices) > 30:
-            return jsonify({'code': 400, 'message': '切片数量不能超过 30 个'}), 400
+        # 验证切片数量（最多 100 个）
+        if len(slices) > 100:
+            return jsonify({'code': 400, 'message': '切片数量不能超过 100 个'}), 400
 
         if not task_input:
             return jsonify({'code': 400, 'message': '任务不能为空'}), 400

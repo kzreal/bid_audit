@@ -119,8 +119,8 @@ export const reviewTaskSlices = async (params) => {
     throw new Error('切片不能为空')
   }
 
-  if (slices.length > 30) {
-    throw new Error('切片数量不能超过 30 个')
+  if (slices.length > 100) {
+    throw new Error('切片数量不能超过 100 个')
   }
 
   // 构建请求数据

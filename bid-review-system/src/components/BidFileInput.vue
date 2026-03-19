@@ -1,7 +1,7 @@
 <template>
   <div class="mb-6">
     <label class="block text-gray-700 text-sm font-medium mb-2">
-      投标文件切片 (Markdown) - 最多 30 个文件
+      投标文件切片 (Markdown) - 最多 100 个文件
     </label>
 
     <!-- 文件上传区域 -->
@@ -28,14 +28,14 @@
           选择文件
         </button>
       </p>
-      <p class="text-[10px] text-gray-500 mt-0.5">支持 .md, .txt 格式，最多 30 个文件</p>
+      <p class="text-[10px] text-gray-500 mt-0.5">支持 .md, .txt 格式，最多 100 个文件</p>
     </div>
 
     <!-- 已上传文件列表 -->
     <div v-if="uploadedFiles.length > 0" class="border border-gray-200 rounded-lg p-3 bg-gray-50">
       <div class="flex justify-between items-center mb-2">
         <span class="text-xs text-gray-700 font-medium">
-          已上传文件 ({{ uploadedFiles.length }}/30)
+          已上传文件 ({{ uploadedFiles.length }}/100)
         </span>
         <button @click="clearAllFiles" class="text-xs text-red-600 hover:text-red-800">
           清空全部
@@ -92,8 +92,8 @@ const handleDrop = (event) => {
   errorMessage.value = ''
   const files = Array.from(event.dataTransfer.files)
 
-  if (uploadedFiles.value.length + files.length > 30) {
-    errorMessage.value = `文件数量不能超过 30 个，当前有 ${uploadedFiles.value.length} 个`
+  if (uploadedFiles.value.length + files.length > 100) {
+    errorMessage.value = `文件数量不能超过 100 个，当前有 ${uploadedFiles.value.length} 个`
     return
   }
 
@@ -110,8 +110,8 @@ const handleFileSelect = (event) => {
   errorMessage.value = ''
   const files = Array.from(event.target.files)
 
-  if (uploadedFiles.value.length + files.length > 30) {
-    errorMessage.value = `文件数量不能超过 30 个，当前有 ${uploadedFiles.value.length} 个`
+  if (uploadedFiles.value.length + files.length > 100) {
+    errorMessage.value = `文件数量不能超过 100 个，当前有 ${uploadedFiles.value.length} 个`
     return
   }
 
@@ -146,7 +146,10 @@ const processFile = (file) => {
 }
 
 const updateStoreSlices = () => {
-  store.setBidSlices(uploadedFiles.value.map(f => f.content))
+  store.setBidSlices(uploadedFiles.value.map(f => ({
+    fileName: f.name,
+    content: f.content
+  })))
 }
 
 const formatFileSize = (bytes) => {

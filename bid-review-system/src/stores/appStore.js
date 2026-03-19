@@ -258,10 +258,13 @@ export const useAppStore = defineStore('app', {
       this.startReviewing()
 
       try {
-        // 调用多切片审核 API
+        // 调用多切片审核 API - 提取纯内容数组
+        const slicesContent = this.bidSlices.map(slice =>
+          typeof slice === 'string' ? slice : (slice.content || '')
+        )
         const response = await reviewTaskSlices({
           task,
-          slices: this.bidSlices
+          slices: slicesContent
         })
 
         // 更新任务

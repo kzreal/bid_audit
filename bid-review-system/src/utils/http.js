@@ -4,7 +4,7 @@ import axios from 'axios'
 // 开发环境使用代理，baseURL 设为空，请求通过 Vite 代理转发到本地后端
 const http = axios.create({
   baseURL: '',
-  timeout: 30000,
+  timeout: 0,
   headers: {
     'Content-Type': 'application/json'
   }
