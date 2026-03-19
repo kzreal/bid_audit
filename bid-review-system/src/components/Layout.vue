@@ -146,40 +146,13 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useAppStore } from '../stores/appStore'
+import { generateConclusion } from '../services/hiagentService'
 import BidRequirementInput from './BidRequirementInput.vue'
 import BidFileInput from './BidFileInput.vue'
-import TaskList from './TaskList.vue'
+import TaskList from './TaskListOptimized.vue'
 import ReviewDetail from './ReviewDetail.vue'
 
 const store = useAppStore()
-
-// 模拟任务数据（备用）
-const mockTasks = ref([
-  {
-    id: 1,
-    title: '技术方案完整性评估',
-    description: '评估投标文件中的技术方案是否完整、可行，是否满足需求文档中的所有技术要求。',
-    requirementSource: '需求文档第3章：技术要求',
-    bidSource: '投标文件第4章：技术方案',
-    review: null
-  },
-  {
-    id: 2,
-    title: '价格合理性分析',
-    description: '分析投标报价是否合理，与市场平均水平相比是否存在偏差。',
-    requirementSource: '需求文档第5章：预算要求',
-    bidSource: '投标文件第6章：报价清单',
-    review: null
-  },
-  {
-    id: 3,
-    title: '经验资质匹配度',
-    description: '审核投标方的过往经验和资质是否满足项目要求。',
-    requirementSource: '需求文档第2章：投标人资格',
-    bidSource: '投标文件附件：公司资质证明',
-    review: null
-  }
-])
 
 // 组件挂载时检查 API 状态
 onMounted(async () => {
@@ -216,8 +189,12 @@ const handleSelectTask = async (taskId) => {
   const task = store.tasks.find(t => t.id === taskId)
   if (task && !task.review && !store.loading) {
     try {
-      store.startReviewing()
-      await store.reviewTask(taskId, false)
+      // 根据是否使用切片审核调用不同的方法
+      if (store.useSliceReview) {
+        await store.reviewTaskWithSlices(taskId)
+      } else {
+        await store.reviewTask(taskId)
+      }
     } catch (error) {
       console.error('审核任务失败:', error)
     }
@@ -229,8 +206,12 @@ const handleReviewTask = async () => {
   if (!store.selectedTaskId) return
 
   try {
-    store.startReviewing()
-    await store.reviewTask(store.selectedTaskId, false)
+    // 根据是否使用切片审核调用不同的方法
+    if (store.useSliceReview) {
+      await store.reviewTaskWithSlices(store.selectedTaskId)
+    } else {
+      await store.reviewTask(store.selectedTaskId)
+    }
   } catch (error) {
     console.error('审核任务失败:', error)
   }
@@ -247,10 +228,112 @@ const handleReviewAll = async () => {
   for (const task of unreviewedTasks) {
     try {
       store.selectTask(task.id)
-      await store.reviewTask(task.id, false)
+      // 根据是否使用切片审核调用不同的方法
+      if (store.useSliceReview) {
+        await store.reviewTaskWithSlices(task.id)
+      } else {
+        await store.reviewTask(task.id)
+      }
     } catch (error) {
       console.error(`审核任务 ${task.id} 失败:`, error)
     }
   }
+
+  // 所有任务审核完成后，调用汇总
+  await summarizeReviews()
+}
+
+  // 汇总所有切片审核结果并生成最终结论
+  const summarizeReviews = async () => {
+    // 获取所有已审核的任务
+    const reviewedTasks = store.tasks.filter(task => task.review && task.review.slices_reviews)
+
+    if (reviewedTasks.length === 0) {
+      console.log('没有已审核的任务需要汇总')
+      return
+    }
+
+    console.log(`开始汇总 ${reviewedTasks.length} 个任务的切片审核结果...`)
+
+    // 对每个任务调用汇总接口
+    for (const task of reviewedTasks) {
+      const slicesReviews = task.review.slices_reviews || []
+
+      try {
+        // 首先调用汇总接口（代码汇总）
+        const response = await fetch('http://localhost:8888/hiagent/summarize-reviews', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            task: task,
+            reviews: slicesReviews
+          })
+        })
+
+        if (!response.ok) {
+          console.error(`汇总任务 ${task.id} 失败: ${response.status}`)
+          continue
+        }
+
+        const result = await response.json()
+
+        if (result.code === 200) {
+          console.log(`任务 ${task.id} 汇总完成`)
+
+          // 然后调用 generateConclusion 生成最终结论
+          try {
+            const conclusionResponse = await generateConclusion({
+              task: task,
+              reviews: slicesReviews
+            })
+
+            if (conclusionResponse && conclusionResponse.data) {
+              store.updateTask(task.id, {
+                review: {
+                  ...task.review,
+                  status: conclusionResponse.data.status || '待确认',
+                  reason: conclusionResponse.data.reason || '',
+                  conclusion: conclusionResponse.data.conclusion || '',
+                  evidence: conclusionResponse.data.evidence || '待补充',
+                  bidSource: conclusionResponse.data.evidence || '待补充',
+                  requirementSource: conclusionResponse.data.requirementSource || '招标要求'
+                }
+              })
+              console.log(`任务 ${task.id} 结论生成完成`)
+            }
+          } catch (error) {
+            console.error(`任务 ${task.id} 结论生成失败:`, error)
+            // 结论生成失败，使用汇总结果更新
+            const summaryData = result.data || {}
+            store.updateTask(task.id, {
+              review: {
+                ...task.review,
+                status: summaryData.status || '待确认',
+                reason: summaryData.reason || '',
+                conclusion: summaryData.conclusion || ''
+              }
+            })
+          }
+        } else {
+          console.error(`汇总任务 ${task.id} 失败:`, result.message)
+        }
+      } catch (error) {
+        console.error(`汇总任务 ${task.id} 失败:`, error)
+      }
+    }
+
+    console.log('所有任务汇总完成')
+  }
+
+  // 获取 API key 的辅助函数
+  async function getApiKey(url) {
+    const response = await fetch(`http://localhost:8888${url}`)
+    const result = await response.json()
+    if (result.code === 200 && result.data && result.data.status) {
+      return result.data.message  // 使用 message 字段作为 API key
+    }
+    return ''
 }
 </script>

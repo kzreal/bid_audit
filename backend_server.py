@@ -7,11 +7,16 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 import os
 import sys
+import logging
+
+# 配置日志
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
 # 添加当前目录到 Python 路径，以便导入 hiagent_client
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from hiagent_client import TaskCreator, TaskAuditor
+from hiagent_client import TaskCreator, TaskAuditor, SummaryAgent
 
 app = Flask(__name__)
 CORS(app)  # 允许跨域请求
@@ -22,6 +27,7 @@ def get_config():
     api_url = None
     task_creator_api_key = None
     task_auditor_api_key = None
+    summary_api_key = None
     user_id = 'user001'
 
     try:
@@ -34,6 +40,8 @@ def get_config():
                     task_creator_api_key = line.split('=', 1)[1]
                 elif line.startswith('VITE_TASK_AUDITOR_API_KEY='):
                     task_auditor_api_key = line.split('=', 1)[1]
+                elif line.startswith('VITE_SUMMARY_API_KEY='):
+                    summary_api_key = line.split('=', 1)[1]
                 elif line.startswith('VITE_HIAGENT_USER_ID='):
                     user_id = line.split('=', 1)[1]
     except:
@@ -46,6 +54,8 @@ def get_config():
         task_creator_api_key = os.getenv('VITE_TASK_CREATOR_API_KEY', 'd6ntpsf4piphvinbnmh0')
     if not task_auditor_api_key:
         task_auditor_api_key = os.getenv('VITE_TASK_AUDITOR_API_KEY', 'd6oo7pn4piphvinbrb6g')
+    if not summary_api_key:
+        summary_api_key = os.getenv('VITE_SUMMARY_API_KEY', 'd6oo7pn4piphvinbrb7g')
     if user_id == 'user001':
         user_id = os.getenv('VITE_HIAGENT_USER_ID', '250701283')
 
@@ -53,79 +63,16 @@ def get_config():
     if not api_url:
         api_url = 'https://prd-ai-studio.chint.com/api/proxy/api/v1'
 
-    return api_url, task_creator_api_key, task_auditor_api_key, user_id
+    return api_url, task_creator_api_key, task_auditor_api_key, summary_api_key, user_id
 
-API_URL, TASK_CREATOR_API_KEY, TASK_AUDITOR_API_KEY, USER_ID = get_config()
-print(f"Config: API_URL={API_URL}, TASK_CREATOR_API_KEY={TASK_CREATOR_API_KEY}, TASK_AUDITOR_API_KEY={TASK_AUDITOR_API_KEY}, USER_ID={USER_ID}")
+API_URL, TASK_CREATOR_API_KEY, TASK_AUDITOR_API_KEY, SUMMARY_API_KEY, USER_ID = get_config()
+print(f"Config: API_URL={API_URL}, TASK_CREATOR_API_KEY={TASK_CREATOR_API_KEY}, TASK_AUDITOR_API_KEY={TASK_AUDITOR_API_KEY}, SUMMARY_API_KEY={SUMMARY_API_KEY}, USER_ID={USER_ID}")
 
 # 初始化 HiAgent 客户端，使用不同的 API key
 task_creator = TaskCreator(API_URL, TASK_CREATOR_API_KEY, USER_ID)
 task_auditor = TaskAuditor(API_URL, TASK_AUDITOR_API_KEY, USER_ID)
+summary_agent = SummaryAgent(API_URL, SUMMARY_API_KEY, USER_ID)
 
-
-@app.route('/hiagent/debug', methods=['POST'])
-def debug_tasks():
-    """调试端点，显示详细错误信息"""
-    try:
-        data = request.get_json()
-        requirement = data.get('requirement', '')
-
-        print(f"=== DEBUG MODE ===")
-        print(f"Requirement: {requirement}")
-        print(f"Config - API_URL: {API_URL}")
-        print(f"Config - API_KEY: {API_KEY}")
-        print(f"Config - USER_ID: {USER_ID}")
-
-        # 调用 HiAgent
-        input_data = {"extraction": requirement, "type": 1}
-        print(f"Input data: {input_data}")
-
-        result = task_creator.sync_run_workflow(input_data)
-        print(f"HiAgent result: {result}")
-
-        if result and result.get('status') == 'success':
-            # 解析 output 字段，它可能是 JSON 字符串
-            output = result.get('output', '')
-            print(f"Raw output: {output}")
-
-            # 尝试解析 output 中的 JSON
-            try:
-                import json
-                data = json.loads(output)
-                content = data.get('content', '')
-                print(f"Extracted content: {content}")
-            except:
-                # 如果解析失败，直接使用 output
-                content = output
-
-            # 解析任务
-            tasks = TaskCreator.parse_tasks(content)
-            return jsonify({
-                'code': 200,
-                'message': '任务生成成功',
-                'data': tasks,
-                'raw_text': content,
-                'debug': 'success'
-            })
-        else:
-            return jsonify({
-                'code': 500,
-                'message': 'HiAgent API 失败',
-                'hiagent_result': result,
-                'debug': 'hiagent_error'
-            }), 500
-
-    except Exception as e:
-        import traceback
-        error_msg = f"调试错误：{str(e)}\n{traceback.format_exc()}"
-        print(error_msg)
-        return jsonify({
-            'code': 500,
-            'message': '调试失败',
-            'error': str(e),
-            'traceback': traceback.format_exc(),
-            'debug': 'server_error'
-        }), 500
 
 @app.route('/hiagent/generate-tasks', methods=['POST'])
 def generate_tasks():
@@ -142,11 +89,8 @@ def generate_tasks():
                 'message': '招标文件信息不能为空'
             }), 400
 
-        print(f"开始生成任务，需求：{requirement[:50]}..., type: {task_type}")
-
         # type=0（核实信息）和 type=1（招标要求）都需要调用 HiAgent API
         if task_type in [0, 1]:
-            print(f"type={task_type}，调用 HiAgent API")
             result = task_creator.sync_run_workflow({
                 "extraction": requirement,
                 "type": task_type
@@ -158,38 +102,21 @@ def generate_tasks():
                     'message': '任务生成失败'
                 }), 500
 
-            # 解析 output 字段
+            # 获取 output 字段（HiAgent API 新格式）
             output = result.get('output', '')
-            print(f"Raw output: {output}")
 
-            # 尝试解析 output 中的 JSON
-            try:
-                import json
-                json_data = json.loads(output)
-                content = json_data.get('content', '')
-                print(f"Extracted content: {content}")
-            except:
-                # 如果解析失败，直接使用 output
-                content = output
-
-            # 解析任务
-            print(f"=== Debug Info ===")
-            print(f"Type of content: {type(content)}")
-            print(f"Length: {len(content)}")
-            print(f"Starts with {{: {content.startswith('{')}")
-
-            tasks = TaskCreator.parse_tasks(content)
-            print(f"Parsed tasks count: {len(tasks)}")
+            # 将 output 传递给 TaskCreator.parse_tasks 进行解析
+            # 新格式: {"output": "{\"tasks\": [\"任务1\", \"任务2\"]}"}
+            tasks = TaskCreator.parse_tasks(output)
 
             return jsonify({
                 'code': 200,
                 'message': '任务生成成功',
                 'data': tasks,
-                'raw_text': content
+                'raw_text': output
             })
 
         # 通用要求（type=None），直接复制为任务
-        print("通用要求（type=None），直接返回任务")
         tasks = [{
             'id': 1,
             'content': requirement,
@@ -211,6 +138,82 @@ def generate_tasks():
             'message': '任务生成失败',
             'error': str(e),
             'traceback': traceback.format_exc()
+        }), 500
+
+
+@app.route('/hiagent/generate-conclusion', methods=['POST'])
+def generate_conclusion():
+    """生成最终审核结论"""
+    try:
+        data = request.get_json()
+        task_input = data.get('task')
+        reviews = data.get('reviews', [])
+
+        if not task_input:
+            return jsonify({
+                'code': 400,
+                'message': '任务不能为空'
+            }), 400
+
+        # 如果 task 是对象，从中提取任务描述
+        if isinstance(task_input, dict):
+            # 优先使用 description，其次使用 title
+            task = task_input.get('description', task_input.get('title', ''))
+        else:
+            # 如果是字符串，直接使用
+            task = str(task_input)
+
+        if not isinstance(reviews, list):
+            return jsonify({
+                'code': 400,
+                'message': '审核结果必须是数组格式'
+            }), 400
+
+        # 调用 SummaryAgent 生成结论
+        result_text = summary_agent.generate_conclusion(task, reviews, use_sync=True)
+
+        if not result_text:
+            return jsonify({
+                'code': 500,
+                'message': '结论生成失败'
+            }), 500
+
+        # 使用 SummaryAgent.parse_conclusion 解析总结结果
+        parsed = summary_agent.parse_conclusion(result_text)
+        conclusion = parsed.get('conclusion', '')
+        reason = parsed.get('reason', '')
+        evidence = parsed.get('evidence', '')
+
+        # 根据结论内容判断状态
+        status = '待确认'  # 默认状态
+        if conclusion:
+            # 检查是否包含"通过"、"符合"等关键词
+            if any(keyword in conclusion for keyword in ['通过', '符合', '合格', '满足']):
+                status = '通过'
+            elif any(keyword in conclusion for keyword in ['不通过', '不符合', '不合格', '未通过']):
+                status = '不通过'
+
+        # 使用 Python 的 datetime 获取当前时间
+        from datetime import datetime
+
+        # 返回符合 guide.md 定义的格式
+        return jsonify({
+            'code': 200,
+            'message': '总结成功',
+            'data': {
+                'conclusion': conclusion,
+                'reason': reason,
+                'evidence': evidence
+            },
+            'status': status,
+            'raw_text': result_text
+        })
+
+    except Exception as e:
+        print(f"生成结论时发生错误：{str(e)}")
+        return jsonify({
+            'code': 500,
+            'message': f'服务器错误：{str(e)}'
         }), 500
 
 
@@ -242,8 +245,6 @@ def review_task():
                 'message': '投标文件内容不能为空'
             }), 400
 
-        print(f"开始审核任务：{str(task)[:100]}...")
-
         # 调用 HiAgent API 审核任务
         result_text = task_auditor.audit_task(task, context, use_sync=True)
 
@@ -253,41 +254,20 @@ def review_task():
                 'message': '任务审核失败'
             }), 500
 
-        print(f"HiAgent 返回的审核结果：{result_text}")
-
         # 使用 TaskAuditor.parse_audit_result 解析审核结果
-        # 新格式: {"results": [{"conclusion": "通过"}, {"reason": "..."}, {"evidence": "页码范围"}]}
+        # 新格式: {"result": {"suggestion": "...", "evidence": "..."}}
         parsed = TaskAuditor.parse_audit_result(result_text)
-        conclusion = parsed.get('conclusion', '')
-        reason = parsed.get('reason', '')
+        suggestion = parsed.get('suggestion', '')
         evidence = parsed.get('evidence', '')
 
-        print(f"解析结果: 结论={conclusion}, 原因={reason[:50] if reason else ''}..., 证据={evidence[:50] if evidence else ''}...")
-
-        # 根据结论内容判断状态
-        status = '待确认'  # 默认状态
-        if conclusion:
-            # 检查是否包含"通过"、"符合"等关键词
-            if any(keyword in conclusion for keyword in ['通过', '符合', '合格', '满足']):
-                status = '通过'
-            elif any(keyword in conclusion for keyword in ['不通过', '不符合', '不合格', '未通过']):
-                status = '不通过'
-
-        # 使用 Python 的 datetime 获取当前时间
-        from datetime import datetime
-
-        # 返回符合 api.md 定义的格式
+        # 返回符合格式
         return jsonify({
             'code': 200,
             'message': '任务审核成功',
             'data': {
-                'results': [
-                    {'conclusion': conclusion},
-                    {'reason': reason},
-                    {'evidence': evidence}
-                ]
+                'suggestion': suggestion,
+                'evidence': evidence
             },
-            'status': status,
             'raw_text': result_text
         })
 
@@ -296,6 +276,76 @@ def review_task():
         return jsonify({
             'code': 500,
             'message': f'服务器错误：{str(e)}'
+        }), 500
+
+
+@app.route('/hiagent/review-task-slices', methods=['POST'])
+def review_task_slices():
+    """
+    多切片审核：对一个任务，用多个切片文件分别审核，然后汇总结果（不调用 LLM）
+    """
+    try:
+        data = request.get_json()
+        task_input = data.get('task')
+        slices = data.get('slices', [])  # 切片内容数组
+
+        # 验证切片数量（最多 30 个）
+        if len(slices) > 30:
+            return jsonify({'code': 400, 'message': '切片数量不能超过 30 个'}), 400
+
+        if not task_input:
+            return jsonify({'code': 400, 'message': '任务不能为空'}), 400
+
+        if not slices:
+            return jsonify({'code': 400, 'message': '切片不能为空'}), 400
+
+        # 提取任务描述
+        if isinstance(task_input, dict):
+            task = task_input.get('description', task_input.get('title', ''))
+        else:
+            task = str(task_input)
+
+        print(f"开始多切片审核，任务：{str(task)[:50]}...，切片数：{len(slices)}")
+
+        # 对每个切片调用 TaskAuditor
+        reviews = []
+        for idx, slice_text in enumerate(slices):
+            print(f"正在审核切片 {idx+1}/{len(slices)}...")
+            result_text = task_auditor.audit_task(task, slice_text, use_sync=True)
+            parsed = TaskAuditor.parse_audit_result(result_text)
+
+            # 处理 evidence，如果是字符串 "null" 则转为 null
+            evidence = parsed.get('evidence', '')
+            if evidence == 'null' or evidence == '""':
+                evidence = None
+
+            reviews.append({
+                'suggestion': parsed.get('suggestion', ''),
+                'evidence': evidence
+            })
+
+        # 调用 SummaryAgent 汇总所有切片的审核结果
+        # 只返回原始切片审核结果，不做整合处理
+        print(f"\n切片审核完成，共 {len(reviews)} 个切片")
+
+        # 返回简化格式（只包含 task 和 reviews）
+        return jsonify({
+            'code': 200,
+            'message': '多切片审核成功',
+            'data': {
+                'task': task,
+                'reviews': reviews
+            }
+        })
+
+    except Exception as e:
+        import traceback
+        error_msg = f"多切片审核失败：{str(e)}\n{traceback.format_exc()}"
+        print(error_msg)
+        return jsonify({
+            'code': 500,
+            'message': '多切片审核失败',
+            'error': str(e)
         }), 500
 
 
@@ -320,6 +370,70 @@ def health_check():
         'status': 'ok',
         'message': 'HiAgent Backend Server is running'
     })
+
+
+@app.route('/hiagent/summarize-reviews', methods=['POST'])
+def summarize_reviews():
+    """
+    汇总切片审核结果：将各个切片的审核结果整合为统一格式
+    """
+    try:
+        data = request.get_json()
+        task_input = data.get('task')
+        reviews_input = data.get('reviews', [])
+
+        if not task_input:
+            return jsonify({'code': 400, 'message': '任务不能为空'}), 400
+
+        # 提取任务描述
+        if isinstance(task_input, dict):
+            task = task_input.get('description', task_input.get('title', ''))
+        else:
+            task = str(task_input)
+
+        # 检查 reviews 格式
+        if not isinstance(reviews_input, list):
+            return jsonify({'code': 400, 'message': 'reviews 必须是数组'}), 400
+
+        print(f"\n开始汇总审核结果，任务：{str(task)[:50]}...，审核结果数：{len(reviews_input)}")
+
+        # 构建 reviews 数组
+        reviews = []
+        for review in reviews_input:
+            # 处理每个 review 对象
+            suggestion = review.get('suggestion', '')
+            evidence = review.get('evidence', '')
+
+            # 如果 evidence 是字符串 "null"，则转为 null
+            if evidence == 'null' or evidence == '""':
+                evidence = None
+
+            reviews.append({
+                'suggestion': suggestion,
+                'evidence': evidence
+            })
+
+        print(f"汇总完成，生成 reviews 数组：{len(reviews)} 条")
+
+        # 返回结果
+        return jsonify({
+            'code': 200,
+            'message': '汇总成功',
+            'data': {
+                'task': task,
+                'reviews': reviews
+            }
+        })
+
+    except Exception as e:
+        import traceback
+        error_msg = f"汇总失败：{str(e)}\n{traceback.format_exc()}"
+        print(error_msg)
+        return jsonify({
+            'code': 500,
+            'message': '汇总失败',
+            'error': str(e)
+        }), 500
 
 
 if __name__ == '__main__':

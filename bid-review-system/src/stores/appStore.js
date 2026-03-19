@@ -1,7 +1,5 @@
 import { defineStore } from 'pinia'
-import { generateTasks, reviewTask } from '../services/hiagentService'
-import { parseHiagentTasks, validateTasks } from '../utils/taskParser'
-import { parseReviewResult, validateReview } from '../utils/reviewParser'
+import { generateTasks, reviewTask, reviewTaskSlices } from '../services/hiagentService'
 import { getHiAgentType } from '../types'
 
 export const useAppStore = defineStore('app', {
@@ -10,10 +8,9 @@ export const useAppStore = defineStore('app', {
     requirementType: '',
     requirementText: '',
 
-    // 投标文件
-    bidText: '',
-    contextText: '',
-    currentFile: null,
+    // 投标文件切片
+    bidSlices: [],  // 切片内容数组
+    contextText: '',  // 单个文本输入（保留兼容性）
 
     // 任务列表
     tasks: [],
@@ -49,12 +46,17 @@ export const useAppStore = defineStore('app', {
 
     // 是否可以开始分析
     canAnalyze: (state) => {
-      return state.requirementText.trim() && state.contextText.trim()
+      return state.requirementText.trim() && (state.contextText.trim() || state.bidSlices.length > 0)
     },
 
     // 是否可以开始审核
     canReview: (state) => {
-      return state.selectedTask && !state.selectedTask.review && !state.reviewing && state.contextText.trim()
+      return state.selectedTask && !state.selectedTask.review && !state.reviewing
+    },
+
+    // 是否使用多切片审核
+    useSliceReview: (state) => {
+      return state.bidSlices.length > 0
     }
   },
 
@@ -65,11 +67,9 @@ export const useAppStore = defineStore('app', {
       this.requirementText = text
     },
 
-    // 设置投标文件
-    setBidFile(text, file = null) {
-      this.bidText = text
-      this.contextText = text
-      this.currentFile = file
+    // 设置投标文件切片
+    setBidSlices(slices) {
+      this.bidSlices = slices
     },
 
     // 清空招标信息
@@ -80,9 +80,8 @@ export const useAppStore = defineStore('app', {
 
     // 清空投标文件
     clearBidFile() {
-      this.bidText = ''
+      this.bidSlices = []
       this.contextText = ''
-      this.currentFile = null
     },
 
     // 设置任务列表
@@ -137,9 +136,8 @@ export const useAppStore = defineStore('app', {
     reset() {
       this.requirementType = ''
       this.requirementText = ''
-      this.bidText = ''
+      this.bidSlices = []
       this.contextText = ''
-      this.currentFile = null
       this.tasks = []
       this.selectedTaskId = null
       this.reviewing = false
@@ -149,8 +147,7 @@ export const useAppStore = defineStore('app', {
     },
 
     // 生成任务
-    // 输入：requirement（招标文件信息）
-    async generateTasks(useMock = false) {
+    async generateTasks() {
       if (!this.requirementText) {
         throw new Error('招标文件信息（requirement）不能为空')
       }
@@ -163,39 +160,21 @@ export const useAppStore = defineStore('app', {
       this.clearError()
 
       try {
-        let response
-
         // 获取 HiAgent API 的 type 值
         const hiagentType = getHiAgentType(this.requirementType)
-        console.log('要求类型:', this.requirementType, 'HiAgent type:', hiagentType)
 
-        if (useMock) {
-          // 使用模拟数据
-          const { mockTaskResponse, mockDelay } = await import('../utils/mockData')
-          await mockDelay(1500)
-          response = mockTaskResponse
-        } else {
-          // 调用 hiagent API - 传递 requirement 和 type
-          response = await generateTasks({
-            requirement: this.requirementText,
-            type: hiagentType
-          })
-        }
+        // 调用 hiagent API - 传递 requirement 和 type
+        const response = await generateTasks({
+          requirement: this.requirementText,
+          type: hiagentType
+        })
 
-        // 解析任务
-        console.log('HiAgent API 原始响应:', response)
-        const parsedTasks = parseHiagentTasks(response)
-        console.log('解析后的任务:', parsedTasks)
-
-        // 验证任务
-        const validation = validateTasks(parsedTasks)
-        if (!validation.valid) {
-          throw new Error(`任务验证失败: ${validation.errors.join(', ')}`)
-        }
-
-        // 添加时间戳
-        const tasksWithTime = parsedTasks.map(task => ({
-          ...task,
+        // 处理后端返回的任务数据，确保有 title 和 description 字段
+        const tasksWithTime = response.data.map(task => ({
+          id: task.id || Date.now() + Math.random(),  // 确保有 id
+          title: task.title || task.content || task.description || `任务 ${task.id}`,
+          description: task.description || task.content || '',
+          subtasks: task.subtasks || [],
           createdAt: new Date(),
           updatedAt: new Date()
         }))
@@ -211,10 +190,8 @@ export const useAppStore = defineStore('app', {
       }
     },
 
-    // 审核任务
-    // 输入：task（一条任务）+ context（投标文件）
-    // 需要重复调用直至处理完所有任务
-    async reviewTask(taskId, useMock = false) {
+    // 审核任务（单个文本输入）
+    async reviewTask(taskId) {
       if (!taskId) {
         throw new Error('任务ID不能为空')
       }
@@ -231,47 +208,74 @@ export const useAppStore = defineStore('app', {
 
       this.setLoading(true)
       this.clearError()
+      this.startReviewing()
 
       try {
-        let response
-
-        if (useMock) {
-          // 使用模拟数据
-          const { mockReviewResults, mockDelay } = await import('../utils/mockData')
-          await mockDelay(2000)
-
-          // 根据任务 ID 选择不同的模拟结果
-          const mockId = taskId % 3
-          response = mockReviewResults[mockId === 0 ? 'pass' : mockId === 1 ? 'fail' : 'pending']
-        } else {
-          // 调用 hiagent API - 传递 task 和 context
-          response = await reviewTask({
-            task,
-            context: this.contextText
-          })
-        }
-
-        // 解析审核结果
-        const parsedReview = parseReviewResult(response)
-
-        // 验证审核结果
-        const validation = validateReview(parsedReview)
-        if (!validation.valid) {
-          console.warn('审核结果验证失败:', validation.errors)
-        }
+        // 调用 hiagent API - 传递 task 和 context
+        const response = await reviewTask({
+          task,
+          context: this.contextText
+        })
 
         // 更新任务
         this.updateTask(taskId, {
           review: {
-            ...parsedReview,
+            ...response.data,
             createdAt: new Date()
           },
           updatedAt: new Date()
         })
 
-        return parsedReview
+        return response.data
       } catch (error) {
         console.error('审核任务失败:', error)
+        this.setError(error.message || '审核任务失败，请重试')
+        throw error
+      } finally {
+        this.setLoading(false)
+        this.endReviewing()
+      }
+    },
+
+    // 多切片审核任务
+    async reviewTaskWithSlices(taskId) {
+      if (!taskId) {
+        throw new Error('任务ID不能为空')
+      }
+
+      if (this.bidSlices.length === 0) {
+        throw new Error('投标文件切片不能为空')
+      }
+
+      // 获取任务对象
+      const task = this.tasks.find(t => t.id === taskId)
+      if (!task) {
+        throw new Error('任务不存在')
+      }
+
+      this.setLoading(true)
+      this.clearError()
+      this.startReviewing()
+
+      try {
+        // 调用多切片审核 API
+        const response = await reviewTaskSlices({
+          task,
+          slices: this.bidSlices
+        })
+
+        // 更新任务
+        this.updateTask(taskId, {
+          review: {
+            ...response.data,
+            createdAt: new Date()
+          },
+          updatedAt: new Date()
+        })
+
+        return response.data
+      } catch (error) {
+        console.error('多切片审核任务失败:', error)
         this.setError(error.message || '审核任务失败，请重试')
         throw error
       } finally {

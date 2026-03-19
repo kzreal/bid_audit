@@ -234,49 +234,36 @@ class TaskCreator(HiAgentClient):
         """
         解析任务文本，提取每条任务
 
-        HiAgent API 新输出格式：
-        {"output": "{\"tasks\": [\"任务1\", \"任务2\"]}"}
-
-        支持多种格式：
-        1. 新格式（推荐）: {"output": "{\"tasks\": [\"任务1\", \"任务2\"]}"}
-        2. 嵌套JSON格式: {"content": "{\"tasks\": [...]}"}
+        支持两种格式：
+        1. 嵌套JSON格式（type=0）: {"task": "任务描述"}
+        2. 嵌套JSON格式（type=1）: {"tasks": [{"id": 1, "description": "..."}]}
         3. 原有文本格式: "1. 任务1\n2. 任务2"
 
         Args:
-            tasks_text: HiAgent API 返回的 output 字段内容
+            tasks_text: HiAgent 返回的任务文本
 
         Returns:
             任务列表，每个元素包含 id, content 和 subtasks
         """
-        # 第一步：尝试解析为 JSON，获取 inner output 字段
+        # 第一步：尝试解析嵌套JSON结构
         content_to_parse = tasks_text
 
+        # 首先尝试解析为 JSON，获取 content 字段
         try:
-            # 新格式：先解析外层 {"output": "..."}
             outer_json = json.loads(tasks_text)
-            if 'output' in outer_json:
-                output_str = outer_json['output']
-                if output_str:
-                    # output 是 JSON 字符串，再解析一次
-                    try:
-                        inner_json = json.loads(output_str)
-                        # 找到了内层 JSON，继续处理
-                        content_to_parse = inner_json
-                    except:
-                        # output 不是 JSON 字符串，直接使用
-                        content_to_parse = output_str
-            elif 'content' in outer_json:
-                # 兼容旧格式 content 字段
+            if 'content' in outer_json:
                 content_str = outer_json['content']
                 if content_str:
                     # 如果 content 是 JSON 字符串，再解析一次
                     try:
                         inner_json = json.loads(content_str)
+                        # 找到了内层 JSON，继续处理
                         content_to_parse = inner_json
                     except:
+                        # content 不是 JSON 字符串，直接使用
                         content_to_parse = content_str
             else:
-                # 没有 output 或 content 字段，直接使用原始数据
+                # 没有 content 字段，直接使用原始数据
                 content_to_parse = outer_json
         except:
             # 不是 JSON 格式，使用原始文本
@@ -287,39 +274,9 @@ class TaskCreator(HiAgentClient):
 
         # 处理字典类型的解析结果
         if isinstance(content_to_parse, dict):
-            # 新格式: {"tasks": ["任务1", "任务2"]}
-            if 'tasks' in content_to_parse and isinstance(content_to_parse['tasks'], list):
-                tasks_list = content_to_parse['tasks']
-                for idx, task_item in enumerate(tasks_list, start=1):
-                    task_content = ''
-
-                    # 尝试获取任务内容，支持多种类型
-                    if isinstance(task_item, str):
-                        task_content = task_item
-                    elif isinstance(task_item, dict):
-                        # 兼容对象格式: {"id": 1, "task": "..."} 或 {"task": "..."}
-                        if 'task' in task_item:
-                            task_content = task_item['task']
-                        elif 'description' in task_item:
-                            task_content = task_item['description']
-                        elif 'content' in task_item:
-                            task_content = task_item['content']
-                        else:
-                            # 如果没有标准键，取第一个值
-                            if task_item:
-                                first_value = next(iter(task_item.values()))
-                                task_content = str(first_value)
-
-                    if task_content and str(task_content).strip():
-                        tasks.append({
-                            'id': int(idx),
-                            'content': str(task_content).strip(),
-                            'subtasks': []
-                        })
-
-            # 兼容旧格式: {"task": "任务描述"}
-            elif 'task' in content_to_parse:
-                task_content = content_to_parse['task']
+            # type=0 格式: {"tasks": "任务字符串"} (tasks是字符串)
+            if 'tasks' in content_to_parse and isinstance(content_to_parse['tasks'], str):
+                task_content = content_to_parse['tasks']
                 if task_content and task_content.strip():
                     tasks.append({
                         'id': 1,
@@ -327,9 +284,41 @@ class TaskCreator(HiAgentClient):
                         'subtasks': []
                     })
 
-            # 兼容旧格式: {"tasks": "任务字符串"} (tasks是字符串)
-            elif 'tasks' in content_to_parse and isinstance(content_to_parse['tasks'], str):
-                task_content = content_to_parse['tasks']
+            # type=1 格式: {"tasks": [{"task1": "..."}, {"task2": "..."}]}
+            elif 'tasks' in content_to_parse and isinstance(content_to_parse['tasks'], list):
+                tasks_list = content_to_parse['tasks']
+                for idx, task_item in enumerate(tasks_list, start=1):
+                    task_id = idx
+                    task_content = ''
+
+                    # 尝试获取任务内容，支持多种键名
+                    if isinstance(task_item, dict):
+                        # 查找 task1, task2 等键名
+                        task_key = f'task{idx}'
+                        if task_key in task_item:
+                            task_content = task_item[task_key]
+                        # 兼容标准格式: id/description
+                        elif 'description' in task_item:
+                            task_content = task_item['description']
+                        elif 'content' in task_item:
+                            task_content = task_item['content']
+                        # 如果没有标准键，取第一个值
+                        elif task_item:
+                            first_value = next(iter(task_item.values()))
+                            task_content = str(first_value)
+                    elif isinstance(task_item, str):
+                        task_content = task_item
+
+                    if task_content and str(task_content).strip():
+                        tasks.append({
+                            'id': int(task_id),
+                            'content': str(task_content).strip(),
+                            'subtasks': []
+                        })
+
+            # 兼容旧格式: {"task": "任务描述"}
+            elif 'task' in content_to_parse:
+                task_content = content_to_parse['task']
                 if task_content and task_content.strip():
                     tasks.append({
                         'id': 1,
@@ -464,17 +453,16 @@ class TaskAuditor(HiAgentClient):
         """
         解析审核结果
 
-        HiAgent API 新输出格式：
-        {"output": "{\"result\": {\"suggestion\": \"...\", \"evidence\": \"...\"}}"}
-
         Args:
-            result_text: HiAgent 返回的 output 字段内容
+            result_text: HiAgent 返回的审核结果文本，必须是 JSON 格式
+            HiAgent 返回格式: {"content": "{\"results\": [{\"conclusion\": \"通过\", \"reason\": \"...\", \"evidence\": \"1\"}]}"}
 
         Returns:
-            包含 suggestion, evidence 的字典
+            包含 conclusion, reason, evidence 的字典
         """
         result = {
-            'suggestion': '',
+            'conclusion': '',
+            'reason': '',
             'evidence': ''
         }
 
@@ -492,16 +480,6 @@ class TaskAuditor(HiAgentClient):
             try:
                 inner_json = json.loads(content)
 
-                # 处理 result 包装层格式: {"result": {"suggestion": "...", "evidence": "..."}}
-                if isinstance(inner_json, dict) and 'result' in inner_json:
-                    result_obj = inner_json['result']
-                    if isinstance(result_obj, dict):
-                        if 'suggestion' in result_obj:
-                            result['suggestion'] = result_obj['suggestion']
-                        if 'evidence' in result_obj:
-                            result['evidence'] = result_obj['evidence']
-                        return result
-
                 # 处理单对象格式（中文字段名）
                 # 格式: {"conclusion": "通过", "reason": "...", "来源": "..."}
                 if isinstance(inner_json, dict):
@@ -514,14 +492,6 @@ class TaskAuditor(HiAgentClient):
                         result['evidence'] = inner_json['来源']
                     elif 'evidence' in inner_json:
                         result['evidence'] = inner_json['evidence']
-
-                    # 处理 suggestion 和 evidence 格式
-                    if 'suggestion' in inner_json:
-                        result['suggestion'] = inner_json['suggestion']
-                    if 'evidence' in inner_json:
-                        result['evidence'] = inner_json['evidence']
-                    if result['suggestion'] or result['evidence']:
-                        return result
 
                     # 如果成功提取到所有字段，直接返回
                     if result['conclusion'] or result['reason'] or result['evidence']:
@@ -588,96 +558,5 @@ class TaskAuditor(HiAgentClient):
 
         except json.JSONDecodeError as e:
             print(f"JSON 解析失败: {e}")
-
-        return result
-
-
-class SummaryAgent(HiAgentClient):
-    """汇总审核结果并生成最终结论"""
-
-    def generate_conclusion(self, task: str, reviews: List[Dict[str, Any]], use_sync: bool = True) -> Optional[str]:
-        """
-        汇总审核结果并生成最终结论
-
-        Args:
-            task: 任务描述
-            reviews: 所有切片的审核结果
-            use_sync: 是否使用同步调用
-
-        Returns:
-            结论文本，格式为 {"content": "{"conclusion": "...", "reason": "...", "evidence": "..."}"}
-        """
-        # 将 task 和 reviews 包装在 information 字段中（JSON 字符串格式）
-        information = json.dumps({"task": task, "reviews": reviews}, ensure_ascii=False)
-
-        input_data = {
-            "information": information
-        }
-
-        if use_sync:
-            print("使用同步方式生成结论...")
-            url = f"{self.api_url}/sync_run_app_workflow"
-            data = {
-                "UserID": self.user_id,
-                "InputData": json.dumps(input_data),
-                "NoDebug": True
-            }
-            result = self._make_request(url, data)
-        else:
-            print("使用异步方式生成结论...")
-            run_id = self.async_run_workflow(input_data)
-            if run_id:
-                result = self.query_workflow_process(run_id)
-
-        if result:
-            if isinstance(result, dict):
-                output = result.get('content', result.get('output', ''))
-            else:
-                output = str(result)
-
-        return output
-
-    def parse_conclusion(self, result_text: str) -> Dict[str, str]:
-        """
-        解析总结结果
-
-        HiAgent API 新输出格式：
-        {"output": "{\"conclusion\": \"...\", \"reason\": \"...\", \"evidence\": \"...\"}"}
-
-        Args:
-            result_text: HiAgent 返回的 output 字段内容
-
-        Returns:
-            包含 conclusion, reason, evidence 的字典
-        """
-        result = {
-            "conclusion": '',
-            "reason": '',
-            "evidence": ''
-        }
-
-        try:
-            # 解析外层 JSON
-            outer_json = json.loads(result_text)
-
-            # 优先获取 output 字段，兼容 content 字段
-            content_str = outer_json.get('output', outer_json.get('content', ''))
-
-            if content_str:
-                # 解析 inner_json
-                try:
-                    inner_data = json.loads(content_str)
-
-                    # 尝试直接提取字段
-                    result['conclusion'] = inner_data.get('conclusion', '')
-                    result['reason'] = inner_data.get('reason', '')
-                    result['evidence'] = inner_data.get('evidence', '')
-                except json.JSONDecodeError:
-                    # content_str 不是 JSON，直接使用
-                        result['reason'] = content_str
-                        result['evidence'] = content_str
-
-        except json.JSONDecodeError:
-            print(f"JSON 解析失败: {result_text}")
 
         return result

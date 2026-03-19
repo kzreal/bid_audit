@@ -4,6 +4,67 @@
 
 这是一个基于 **HiAgent API** 的投标文件智能审核系统，使用 Vue3 + Vite（前端）+ Flask + Python（后端）实现。
 
+## MVP 版本说明
+
+**当前版本：MVP (最小化可行产品)**
+
+MVP 版本聚焦核心功能，简化了代码复杂度，便于快速部署和验证。
+
+### MVP 核心功能
+
+1. **招标信息输入**
+   - 类型选择（信息核对/招标要求/通用）
+   - 文本输入区域
+
+2. **投标文件多切片上传**
+   - 支持拖拽上传多个 .md/.txt 文件
+   - 最多 30 个切片文件
+   - 文件列表展示和管理
+
+3. **任务生成**
+   - 基于 HiAgent API (TaskCreator)
+   - 自动生成审核任务列表
+
+4. **多切片审核**
+   - 对每个切片依次调用 TaskAuditor API
+   - 汇总所有切片的审核结果
+   - 调用 SummaryAgent 生成最终结论
+
+5. **审核结果展示**
+   - 三栏布局（招标输入、任务列表、审核详情）
+   - 显示每个切片的审核结果
+   - 显示汇总后的最终结论
+
+6. **错误提示**
+   - API 失败时显示真实错误信息
+   - 不使用模拟数据
+
+### MVP 接口列表
+
+| 端点 | 方法 | HiAgent API |
+|------|------|-------------|
+| `/health` | GET | - |
+| `/hiagent/status` | GET | - |
+| `/hiagent/generate-tasks` | POST | TaskCreator |
+| `/hiagent/review-task` | POST | TaskAuditor |
+| `/hiagent/review-task-slices` | POST | TaskAuditor + SummaryAgent |
+| `/hiagent/generate-conclusion` | POST | SummaryAgent |
+
+### MVP 与完整版对比
+
+| 功能 | MVP | 完整版 |
+|------|-----|--------|
+| 文件上传 | 多切片上传（最多30个） | 单个文件上传 + 切片分割 |
+| 虚拟滚动 | ❌ | ✅ |
+| 模拟数据 | ❌ | ✅ |
+| 调试接口 | ❌ | ✅ |
+| 复杂解析 | ❌ | ✅ |
+| 性能优化工具 | ❌ | ✅ |
+| 行号解析 | ❌ | ✅ |
+| 三栏布局 | ✅ | ✅ |
+| 多切片审核 | ✅ | ✅ |
+| 审核结论汇总 | ✅ | ✅ |
+
 ## 系统架构
 
 ### 整体架构图
@@ -92,6 +153,10 @@
 | `TaskAuditor` | 审核单个任务 | TASK_AUDITOR_API_KEY |
 | `SummaryAgent` | 汇总审核结果并生成最终结论 | SUMMARY_API_KEY |
 
+---
+
+### 3. SummaryAgent（总结 Agent）
+
 ## HiAgent LLM 节点输入输出对齐
 
 ### HiAgent API 请求格式（统一）
@@ -128,13 +193,14 @@
 
 ```json
 {
-  "content": "{\n  \"tasks\": [\n    \"请核实投标文件中项目编号是否为\\\"ad1231313\\\"\"\n  ]\n}"
+  "output": "{\n  \"tasks\": [\n    \"请核实投标文件中项目编号是否为\\\"ad1231313\\\"\"\n  ]\n}"
 }
 ```
 
 **解析说明：**
-- `content` 字段包含一个 JSON 字符串
-- 需要再次解析 `content` 获取内部的 `tasks` 数组
+- HiAgent API 返回嵌套的 JSON 结构
+- `output` 字段包含一个 JSON 字符串
+- 需要解析 `output` 字段，再解析内部的 `tasks` 数组
 - `tasks` 数组中每个元素是一个任务字符串
 
 **后端解析后标准格式：**
@@ -146,8 +212,7 @@
   "data": [
     {
       "id": 1,
-      "content": "请核实投标文件中项目编号是否为\"ad1231313\"",
-      "subtasks": []
+      "task": "请核实投标文件中项目编号是否为\"ad1231313\"",
     }
   ],
   "raw_text": "{...}"
@@ -180,13 +245,14 @@
 
 ```json
 {
-  "content": "{\n  \"result\": {\n    \"suggestion\": \"本切片与当前审核任务无关。\",\n    \"evidence\": \"null\"\n  }\n}"
+  "output": "{\n  \"result\": {\n    \"suggestion\": \"本切片与当前审核任务无关。\",\n    \"evidence\": \"null\"\n  }\n}"
 }
 ```
 
 **解析说明：**
-- `content` 字段包含一个 JSON 字符串
-- 需要再次解析 `content` 获取内部的 `result` 对象
+- HiAgent API 返回嵌套的 JSON 结构
+- `output` 字段包含一个 JSON 字符串
+- 需要解析 `output` 字段，再解析内部的 `result` 对象
 - `result` 对象包含：
   - `suggestion`: 建议
   - `evidence`: 证据
@@ -198,22 +264,32 @@
   "code": 200,
   "message": "任务审核成功",
   "data": {
-    "results": [
-      {"suggestion": "本切片与当前审核任务无关。"},
-      {"evidence": "null"}
-    ]
+    "suggestion": "本切片与当前审核任务无关。",
+    "evidence": "null"
   },
-  "status": "待确认",
   "raw_text": "{...}"
 }
 ```
 
-**status 字段判断规则：**
-- 如果 suggestion 包含"通过"、"符合"、"合格"、"满足" → 状态 = "通过"
-- 如果 suggestion 包含"不通过"、"不符合"、"不合格"、"未通过" → 状态 = "不通过"
-- 否则 → 状态 = "待确认"
-
 ---
+
+
+### 此处需要一段代码将各个切片调用taskaudit后的结果合并，合并后的结构，此为summaryagent的输入
+{  
+  "task": "单条审核任务描述",
+  "reviews": [
+    {
+      "suggestion": "该切片的审核建议",
+      "evidence": "行号列表，或 null（表示本切片与任务无关）"
+    },
+    {
+      "suggestion": "建议2",
+      "evidence": "行号列表，或 null（表示本切片与任务无关）"
+    },
+    ····
+  ]
+}
+
 
 ### 3. SummaryAgent（总结 Agent）
 
@@ -221,45 +297,34 @@
 
 #### InputData 结构
 
-```json
-{
-  "task": "请核实投标文件中投标人是否为生产制造商",
+{  
+  "task": "单条审核任务描述",
   "reviews": [
     {
-      "chunk_id": "chapter_3",
-      "suggestion": "投标文件在第3章明确声明为制造商，并提供了生产资质证明。",
-      "evidence": "276, 684-713"
+      "suggestion": "该切片的审核建议",
+      "evidence": "行号列表，或 null（表示本切片与任务无关）"
     },
     {
-      "chunk_id": "chapter_5",
-      "suggestion": "本切片与当前审核任务无关。",
-      "evidence": null
-    }
+      "suggestion": "建议2",
+      "evidence": "行号列表，或 null（表示本切片与任务无关）"
+    },
+    ····
   ]
 }
-```
 
-**参数说明：**
-
-| 参数名 | 数据类型 | 是否必填 | 说明 |
-|--------|----------|----------|------|
-| `task` | string | 是 | 当前要总结的任务描述 |
-| `reviews` | array | 是 | 所有切片的审核结果数组 |
-| `reviews[].chunk_id` | string | 是 | 切片标识 |
-| `reviews[].suggestion` | string | 是 | 该切片的建议 |
-| `reviews[].evidence` | string/null | 是 | 该切片的证据 |
 
 #### HiAgent API 输出格式
 
 ```json
 {
-  "content": "{\"conclusion\": \"通过\", \"reason\": \"投标文件在第3章明确声明为制造商，并提供了生产资质证明。\", \"evidence\": \"276, 684-713\"}"
+  "output": "{\"conclusion\": \"通过\", \"reason\": \"投标文件在第3章明确声明为制造商，并提供了生产资质证明。\", \"evidence\": \"276, 684-713\"}"
 }
 ```
 
 **解析说明：**
-- `content` 字段包含一个 JSON 字符串
-- 需要再次解析 `content` 获取内部的 JSON 对象
+- HiAgent API 返回嵌套的 JSON 结构
+- `output` 字段包含一个 JSON 字符串
+- 需要解析 `output` 字段得到最终结论对象
 - 解析后得到：
   - `conclusion`: 最终结论（"通过"、"不通过"、"待确认"）
   - `reason`: 原因说明
@@ -284,14 +349,16 @@
 
 ## 后端接口说明
 
-| 端点 | 方法 | 说明 |
-|------|------|------|
-| `/health` | GET | 健康检查 |
-| `/hiagent/status` | GET | 获取 API 服务状态 |
-| `/hiagent/debug` | POST | 生成任务并返回调试信息 |
-| `/hiagent/generate-tasks` | POST | 生成审核任务列表 |
-| `/hiagent/review-task` | POST | 审核单个任务 |
-| `/hiagent/generate-conclusion` | POST | 生成最终审核结论 |
+### MVP 核心接口
+
+| 端点 | 方法 | 说明 | HiAgent API |
+|------|------|------|-------------|
+| `/health` | GET | 健康检查 | - |
+| `/hiagent/status` | GET | 获取 API 服务状态 | - |
+| `/hiagent/generate-tasks` | POST | 生成审核任务列表 | TaskCreator |
+| `/hiagent/review-task` | POST | 审核单个任务（单个文本输入） | TaskAuditor |
+| `/hiagent/review-task-slices` | POST | 审核多个切片并汇总 | TaskAuditor + SummaryAgent |
+| `/hiagent/generate-conclusion` | POST | 生成最终审核结论 | SummaryAgent |
 
 ### POST /hiagent/generate-tasks
 
@@ -335,15 +402,63 @@
   "code": 200,
   "message": "任务审核成功",
   "data": {
-    "results": [
-      {"suggestion": "本切片与当前审核任务无关。"},
-      {"evidence": "null"}
-    ]
+    "suggestion": "本切片与当前审核任务无关。",
+    "evidence": "null"
   },
-  "status": "待确认",
   "raw_text": "{...}"
 }
 ```
+
+### POST /hiagent/review-task-slices
+
+**说明：** 多切片审核接口，对一个任务用多个切片文件分别审核，然后汇总结果（不调用 LLM，仅代码汇总）。内部会依次调用 TaskAuditor 审核每个切片，然后直接返回所有切片的审核结果。
+
+**请求：**
+```json
+{
+  "task": "请核实投标文件中投标人是否为生产制造商",
+  "slices": [
+    "切片 1 的 MD 内容",
+    "切片 2 的 MD 内容",
+    "..."
+  ]
+}
+```
+
+**参数说明：**
+- `task`: 任务描述（可以是对象或字符串）
+- `slices`: 切片内容数组（最多 30 个）
+
+**响应：**
+```json
+{
+  "code": 200,
+  "message": "多切片审核成功",
+  "data": {
+    "task": "请核实投标文件中投标人是否为生产制造商",
+    "reviews": [
+      {
+        "suggestion": "本切片与当前审核任务无关。",
+        "evidence": null
+      },
+      {
+        "suggestion": "投标文件在第3章明确声明为制造商，并提供了生产资质证明。",
+        "evidence": "276, 684-713"
+      }
+    ]
+  }
+}
+```
+
+**错误响应：**
+```json
+{
+  "code": 400,
+  "message": "切片数量不能超过 30 个"
+}
+```
+
+---
 
 ### POST /hiagent/generate-conclusion
 
@@ -353,12 +468,10 @@
   "task": "请核实投标文件中投标人是否为生产制造商",
   "reviews": [
     {
-      "chunk_id": "chapter_3",
       "suggestion": "投标文件在第3章明确声明为制造商，并提供了生产资质证明。",
       "evidence": "276, 684-713"
     },
     {
-      "chunk_id": "chapter_5",
       "suggestion": "本切片与当前审核任务无关。",
       "evidence": null
     }

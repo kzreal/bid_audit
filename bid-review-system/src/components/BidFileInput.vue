@@ -1,12 +1,12 @@
 <template>
   <div class="mb-6">
     <label class="block text-gray-700 text-sm font-medium mb-2">
-      投标文件 (Markdown)
+      投标文件切片 (Markdown) - 最多 30 个文件
     </label>
 
     <!-- 文件上传区域 -->
     <div
-      class="border-2 border-dashed border-gray-300 rounded-lg p-3 text-center hover:border-gray-400 transition-colors mb-3"
+      class="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-gray-400 transition-colors mb-3"
       @drop="handleDrop"
       @dragover.prevent
       @dragenter.prevent
@@ -15,6 +15,7 @@
         type="file"
         ref="fileInput"
         accept=".md,.txt"
+        multiple
         @change="handleFileSelect"
         class="hidden"
       />
@@ -27,31 +28,41 @@
           选择文件
         </button>
       </p>
-      <p class="text-[10px] text-gray-500 mt-0.5">支持 .md, .txt 格式</p>
+      <p class="text-[10px] text-gray-500 mt-0.5">支持 .md, .txt 格式，最多 30 个文件</p>
     </div>
 
-    <!-- 可编辑文本区域 -->
-    <textarea
-      class="text-editor w-full h-56 resize-none"
-      v-model="store.bidText"
-      placeholder="在此粘贴或输入投标文件内容..."
-    ></textarea>
-
-    <!-- 底部操作栏 -->
-    <div class="mt-2 flex justify-between items-center">
-      <span class="text-xs text-gray-500">
-        字符数: {{ store.bidText.length }}
-      </span>
-      <button v-if="store.bidText" @click="clearBidText"
-              class="text-xs text-red-600 hover:text-red-800">
-        清空
-      </button>
+    <!-- 已上传文件列表 -->
+    <div v-if="uploadedFiles.length > 0" class="border border-gray-200 rounded-lg p-3 bg-gray-50">
+      <div class="flex justify-between items-center mb-2">
+        <span class="text-xs text-gray-700 font-medium">
+          已上传文件 ({{ uploadedFiles.length }}/30)
+        </span>
+        <button @click="clearAllFiles" class="text-xs text-red-600 hover:text-red-800">
+          清空全部
+        </button>
+      </div>
+      <div class="max-h-48 overflow-y-auto">
+        <div
+          v-for="(file, index) in uploadedFiles"
+          :key="index"
+          class="flex items-center justify-between py-1 px-2 hover:bg-gray-100 rounded"
+        >
+          <div class="flex items-center flex-1 min-w-0">
+            <span class="text-xs text-gray-600 truncate">{{ file.name }}</span>
+            <span class="text-[10px] text-gray-400 ml-2">({{ formatFileSize(file.size) }})</span>
+          </div>
+          <button @click="removeFile(index)" class="text-red-500 hover:text-red-700 ml-2">
+            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+          </button>
+        </div>
+      </div>
     </div>
 
-    <!-- 文件信息 -->
-    <div v-if="store.currentFile" class="mt-2 text-xs text-gray-600">
-      <p>当前文件: {{ store.currentFile.name }}</p>
-      <p>大小: {{ formatFileSize(store.currentFile.size) }}</p>
+    <!-- 错误提示 -->
+    <div v-if="errorMessage" class="mt-2 text-xs text-red-600">
+      {{ errorMessage }}
     </div>
   </div>
 </template>
@@ -62,41 +73,80 @@ import { useAppStore } from '../stores/appStore'
 
 const store = useAppStore()
 const fileInput = ref(null)
-const currentFile = ref(null)
+const uploadedFiles = ref([])
+const errorMessage = ref('')
 
-const clearBidText = () => {
-  store.clearBidFile()
-  currentFile.value = null
+const clearAllFiles = () => {
+  uploadedFiles.value = []
+  store.setBidSlices([])
+  errorMessage.value = ''
+}
+
+const removeFile = (index) => {
+  uploadedFiles.value.splice(index, 1)
+  updateStoreSlices()
 }
 
 const handleDrop = (event) => {
   event.preventDefault()
-  const files = event.dataTransfer.files
-  if (files.length > 0) {
-    processFile(files[0])
+  errorMessage.value = ''
+  const files = Array.from(event.dataTransfer.files)
+
+  if (uploadedFiles.value.length + files.length > 30) {
+    errorMessage.value = `文件数量不能超过 30 个，当前有 ${uploadedFiles.value.length} 个`
+    return
   }
+
+  files.forEach(file => {
+    if (file.name.match(/\.(md|txt)$/)) {
+      processFile(file)
+    } else {
+      errorMessage.value = `文件 ${file.name} 格式不支持，只支持 .md 和 .txt 文件`
+    }
+  })
 }
 
 const handleFileSelect = (event) => {
-  const file = event.target.files[0]
-  if (file) {
-    processFile(file)
+  errorMessage.value = ''
+  const files = Array.from(event.target.files)
+
+  if (uploadedFiles.value.length + files.length > 30) {
+    errorMessage.value = `文件数量不能超过 30 个，当前有 ${uploadedFiles.value.length} 个`
+    return
   }
+
+  files.forEach(file => {
+    processFile(file)
+  })
 }
 
 const processFile = (file) => {
   if (!file.name.match(/\.(md|txt)$/)) {
-    alert('请选择 .md 或 .txt 文件')
+    errorMessage.value = `文件 ${file.name} 格式不支持`
+    return
+  }
+
+  // 检查是否已存在相同名称的文件
+  if (uploadedFiles.value.some(f => f.name === file.name)) {
+    errorMessage.value = `文件 ${file.name} 已存在`
     return
   }
 
   const reader = new FileReader()
   reader.onload = (e) => {
     const content = e.target.result
-    store.setBidFile(content, file)
-    currentFile.value = file
+    uploadedFiles.value.push({
+      name: file.name,
+      size: file.size,
+      content: content
+    })
+    updateStoreSlices()
   }
   reader.readAsText(file)
+}
+
+const updateStoreSlices = () => {
+  store.setBidSlices(uploadedFiles.value.map(f => f.content))
 }
 
 const formatFileSize = (bytes) => {

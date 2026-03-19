@@ -46,11 +46,9 @@
     </div>
 
     <!-- 审核原因 -->
-    <div class="bg-gray-50 rounded-lg p-4">
+    <div v-if="selectedTask.review.reason" class="bg-gray-50 rounded-lg p-4">
       <h3 class="font-medium text-gray-700 mb-3">审核原因</h3>
-      <div class="prose prose-sm max-w-none">
-        <p class="text-gray-700 whitespace-pre-wrap">{{ selectedTask.review.reason }}</p>
-      </div>
+      <p class="text-gray-700 whitespace-pre-wrap">{{ selectedTask.review.reason }}</p>
     </div>
 
     <!-- 来源信息 -->
@@ -63,7 +61,7 @@
           </svg>
           <div>
             <p class="text-sm font-medium text-gray-700">需求来源</p>
-            <p class="text-sm text-gray-600 mt-1">{{ selectedTask.review.requirementSource }}</p>
+            <p class="text-sm text-gray-600 mt-1">{{ selectedTask.review.requirementSource || '-' }}</p>
           </div>
         </div>
         <div class="flex items-start">
@@ -72,36 +70,29 @@
           </svg>
           <div class="flex-1">
             <p class="text-sm font-medium text-gray-700">投标来源</p>
-            <!-- 原始来源 -->
-            <p class="text-xs text-gray-500 mt-1">{{ parsedBidSource.original }}</p>
-            <!-- 多个可折叠的解析内容 -->
-            <div v-if="parsedBidSource.hasLineNumbers" class="mt-2 space-y-2">
-              <div
-                v-for="(segment, index) in parsedBidSource.segments"
-                :key="index"
-                class="border border-gray-200 rounded-md overflow-hidden"
-              >
-                <button
-                  @click="toggleSegment(index)"
-                  class="w-full flex items-center justify-between px-3 py-2 bg-gray-50 hover:bg-gray-100 transition-colors text-left"
-                >
-                  <span class="text-xs font-medium text-gray-700">
-                    {{ segment.type === 'range' ? '行' : '行' }} {{ segment.label }} ({{ segment.lineCount }} 行内容)
-                  </span>
-                  <svg
-                    :class="['w-4 h-4 text-gray-500 transition-transform', expandedSegments[index] ? 'rotate-180' : '']"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-                  </svg>
-                </button>
-                <div v-show="expandedSegments[index]" class="p-3 bg-green-50 border-t border-gray-200 max-h-64 overflow-y-auto">
-                  <p class="text-sm text-gray-700 whitespace-pre-wrap font-mono">{{ segment.content }}</p>
-                </div>
-              </div>
-            </div>
+            <p class="text-sm text-gray-600 mt-1">{{ selectedTask.review.bidSource || '-' }}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 多切片审核结果 -->
+    <div v-if="selectedTask.review.slices_reviews && selectedTask.review.slices_reviews.length > 0" class="bg-gray-50 rounded-lg p-4">
+      <h3 class="font-medium text-gray-700 mb-3">切片审核结果</h3>
+      <div class="space-y-3">
+        <div
+          v-for="(sliceReview, index) in selectedTask.review.slices_reviews"
+          :key="index"
+          class="border border-gray-200 rounded-md p-3"
+        >
+          <p class="text-xs font-medium text-gray-500 mb-2">切片 {{ index + 1 }}</p>
+          <div v-if="sliceReview.suggestion" class="mb-2">
+            <p class="text-sm font-medium text-gray-700">建议:</p>
+            <p class="text-sm text-gray-600">{{ sliceReview.suggestion }}</p>
+          </div>
+          <div v-if="sliceReview.evidence">
+            <p class="text-sm font-medium text-gray-700">证据:</p>
+            <p class="text-sm text-gray-600">{{ sliceReview.evidence }}</p>
           </div>
         </div>
       </div>
@@ -113,34 +104,23 @@
       <div class="text-sm text-gray-600 space-y-1">
         <p>审核时间: {{ formatDateTime(selectedTask.review.createdAt) }}</p>
         <p>任务创建时间: {{ formatDateTime(selectedTask.createdAt) }}</p>
-        <p>最后更新: {{ formatDateTime(selectedTask.updatedAt) }}</p>
       </div>
     </div>
   </div>
 
   <div v-else>
     <div class="bg-gray-50 rounded-lg p-8 text-center">
-      <!-- 审核中状态 -->
-      <div v-if="store.loading">
-        <div class="loading-ring mx-auto mb-4" style="width: 48px; height: 48px;"></div>
-        <p class="text-gray-600">正在审核任务...</p>
-      </div>
-      <!-- 等待审核状态 -->
-      <div v-else>
-        <svg class="w-16 h-16 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
-        </svg>
-        <p class="text-gray-600">此任务尚未审核</p>
-        <p class="text-sm text-gray-400 mt-2">请点击任务列表中的任务开始审核</p>
-      </div>
+      <svg class="w-16 h-16 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
+      </svg>
+      <p class="text-gray-600">此任务尚未审核</p>
+      <p class="text-sm text-gray-400 mt-2">请点击任务列表中的任务开始审核</p>
     </div>
   </div>
 </template>
 
 <script setup>
-import { computed, ref, watch } from 'vue'
 import { useAppStore } from '../stores/appStore'
-import { parseSourceWithContext } from '../utils/lineParser'
 
 const store = useAppStore()
 
@@ -161,36 +141,6 @@ const reviewTask = () => {
   emit('review-task')
 }
 
-// 控制每个分段的展开/折叠状态
-const expandedSegments = ref({})
-
-const toggleSegment = (index) => {
-  expandedSegments.value = {
-    ...expandedSegments.value,
-    [index]: !expandedSegments.value[index]
-  }
-}
-
-// 解析投标来源，提取行号对应的内容
-const parsedBidSource = computed(() => {
-  if (!props.selectedTask?.review?.bidSource) {
-    return { original: '', segments: [], hasLineNumbers: false }
-  }
-  return parseSourceWithContext(props.selectedTask.review.bidSource, store.contextText)
-})
-
-// 监听任务变化，重置展开状态
-watch(() => props.selectedTask?.review?.bidSource, () => {
-  expandedSegments.value = {}
-})
-
-// 格式化日期
-const formatDate = (date) => {
-  if (!date) return ''
-  const d = new Date(date)
-  return d.toLocaleDateString('zh-CN')
-}
-
 const formatDateTime = (date) => {
   if (!date) return ''
   const d = new Date(date)
@@ -206,6 +156,15 @@ const formatDateTime = (date) => {
   border-radius: 50%;
   width: 40px;
   height: 40px;
+  animation: spin 1s linear infinite;
+}
+
+.loader {
+  border: 2px solid #f3f4f6;
+  border-top: 2px solid #2563eb;
+  border-radius: 50%;
+  width: 16px;
+  height: 16px;
   animation: spin 1s linear infinite;
 }
 
