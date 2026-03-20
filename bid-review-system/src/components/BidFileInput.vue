@@ -44,21 +44,32 @@
     <!-- 已上传文件列表 -->
     <transition name="slide-up">
       <div v-if="uploadedFiles.length > 0" class="mt-4 border border-gray-100 rounded-xl overflow-hidden bg-white shadow-sm">
-        <div class="flex justify-between items-center px-4 py-3 bg-gray-50 border-b border-gray-100">
+        <div class="flex justify-between items-center px-4 py-3 bg-gray-50 border-b border-gray-100 cursor-pointer" @click="fileListExpanded = !fileListExpanded">
           <span class="text-xs text-gray-700 font-semibold flex items-center gap-2">
             <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
             </svg>
             已上传文件 ({{ uploadedFiles.length }}/100)
           </span>
-          <button @click="clearAllFiles" class="text-xs text-gray-400 hover:text-red-600 transition-colors flex items-center gap-1">
-            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+          <div class="flex items-center gap-2">
+            <svg
+              class="w-4 h-4 text-gray-400 transition-transform duration-200"
+              :class="{ 'rotate-180': fileListExpanded }"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
             </svg>
-            清空全部
-          </button>
+            <button @click.stop="clearAllFiles" class="text-xs text-gray-400 hover:text-red-600 transition-colors flex items-center gap-1">
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+              </svg>
+              清空全部
+            </button>
+          </div>
         </div>
-        <div class="max-h-56 overflow-y-auto">
+        <div v-show="fileListExpanded" class="max-h-56 overflow-y-auto">
           <transition-group name="list-item">
             <div
               v-for="(file, index) in uploadedFiles"
@@ -165,6 +176,7 @@ const fileInput = ref(null)
 const uploadedFiles = ref([])
 const errorMessage = ref('')
 const isDragging = ref(false)
+const fileListExpanded = ref(false)
 
 const clearAllFiles = () => {
   uploadedFiles.value = []

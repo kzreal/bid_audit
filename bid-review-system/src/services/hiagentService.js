@@ -8,38 +8,22 @@ import { retryRequest } from '../utils/http'
 
 /**
  * 生成审核任务
- * 输入：requirement（招标文件信息）+ type（类型）
+ * 输入：requirement（招标文件信息）
  * 输出：一系列任务
  * @param {Object} params - 请求参数
  * @param {string} params.requirement - 招标信息文本
- * @param {number|null} params.type - 类型：0=核实信息，1=招标要求，null=通用要求
  * @returns {Promise<Object>} API 响应，包含 data 任务列表
  */
 export const generateTasks = async (params) => {
-  const { requirement, type } = params
+  const { requirement } = params
 
   if (!requirement) {
     throw new Error('招标文件信息不能为空')
   }
 
-  // 如果是通用要求（type=null），直接返回任务，不调用 API
-  if (type === null) {
-    return {
-      data: [{
-        id: 1,
-        title: requirement.length > 20 ? requirement.substring(0, 20) + '...' : requirement,
-        description: requirement,
-        requirementSource: '通用要求',
-        bidSource: '投标文件',
-        status: 'pending'
-      }]
-    }
-  }
-
   // 构建请求数据
   const requestData = {
     requirement,
-    type,
     timestamp: new Date().toISOString()
   }
 

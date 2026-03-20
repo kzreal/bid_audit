@@ -1,11 +1,9 @@
 import { defineStore } from 'pinia'
 import { generateTasks, reviewTask, reviewTaskSlices, generateConclusion } from '../services/hiagentService'
-import { getHiAgentType } from '../types'
 
 export const useAppStore = defineStore('app', {
   state: () => ({
     // 招标信息
-    requirementType: '',
     requirementText: '',
 
     // 投标文件切片
@@ -62,8 +60,7 @@ export const useAppStore = defineStore('app', {
 
   actions: {
     // 设置招标信息
-    setRequirement(type, text) {
-      this.requirementType = type
+    setRequirement(text) {
       this.requirementText = text
     },
 
@@ -74,7 +71,6 @@ export const useAppStore = defineStore('app', {
 
     // 清空招标信息
     clearRequirement() {
-      this.requirementType = ''
       this.requirementText = ''
     },
 
@@ -134,7 +130,6 @@ export const useAppStore = defineStore('app', {
 
     // 重置所有状态
     reset() {
-      this.requirementType = ''
       this.requirementText = ''
       this.bidSlices = []
       this.contextText = ''
@@ -152,21 +147,13 @@ export const useAppStore = defineStore('app', {
         throw new Error('招标文件信息（requirement）不能为空')
       }
 
-      if (!this.requirementType) {
-        throw new Error('请先选择要求类型（信息核对、招标要求或通用要求）')
-      }
-
       this.setLoading(true)
       this.clearError()
 
       try {
-        // 获取 HiAgent API 的 type 值
-        const hiagentType = getHiAgentType(this.requirementType)
-
-        // 调用 hiagent API - 传递 requirement 和 type
+        // 调用 hiagent API - 只传递 requirement
         const response = await generateTasks({
-          requirement: this.requirementText,
-          type: hiagentType
+          requirement: this.requirementText
         })
 
         // 处理后端返回的任务数据，确保有 title 和 description 字段

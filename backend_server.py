@@ -89,44 +89,33 @@ def generate_tasks():
                 'message': '招标文件信息不能为空'
             }), 400
 
-        # type=0（核实信息）和 type=1（招标要求）都需要调用 HiAgent API
-        if task_type in [0, 1]:
-            result = task_creator.sync_run_workflow({
-                "extraction": requirement,
-                "type": task_type
-            })
+        # 所有需求都直接调用 HiAgent LLM 生成任务
+        # 如果传递了 type 参数，使用传递的值；否则使用默认值 1
+        type_param = task_type if task_type is not None else 1
 
-            if not result or result.get('status') != 'success':
-                return jsonify({
-                    'code': 500,
-                    'message': '任务生成失败'
-                }), 500
+        result = task_creator.sync_run_workflow({
+            "extraction": requirement,
+            "type": type_param
+        })
 
-            # 获取 output 字段（HiAgent API 新格式）
-            output = result.get('output', '')
-
-            # 将 output 传递给 TaskCreator.parse_tasks 进行解析
-            # 新格式: {"output": "{\"tasks\": [\"任务1\", \"任务2\"]}"}
-            tasks = TaskCreator.parse_tasks(output)
-
+        if not result or result.get('status') != 'success':
             return jsonify({
-                'code': 200,
-                'message': '任务生成成功',
-                'data': tasks,
-                'raw_text': output
-            })
+                'code': 500,
+                'message': '任务生成失败'
+            }), 500
 
-        # 通用要求（type=None），直接复制为任务
-        tasks = [{
-            'id': 1,
-            'content': requirement,
-            'subtasks': []
-        }]
+        # 获取 output 字段（HiAgent API 新格式）
+        output = result.get('output', '')
+
+        # 将 output 传递给 TaskCreator.parse_tasks 进行解析
+        # 新格式: {"output": "{\"tasks\": [\"任务1\", \"任务2\"]}"}
+        tasks = TaskCreator.parse_tasks(output)
+
         return jsonify({
             'code': 200,
             'message': '任务生成成功',
             'data': tasks,
-            'raw_text': requirement
+            'raw_text': output
         })
 
     except Exception as e:
