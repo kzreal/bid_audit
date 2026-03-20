@@ -128,19 +128,13 @@
                     </div>
 
                     <!-- 任务内容 -->
-                    <div class="flex-1 space-y-2">
+                    <div class="flex-1">
                       <input
                         v-model="task.title"
                         type="text"
-                        placeholder="任务标题"
-                        class="w-full px-3 py-1.5 bg-white border border-gray-200 rounded text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+                        placeholder="输入审核任务"
+                        class="w-full px-3 py-2 bg-white border border-gray-200 rounded text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
                       >
-                      <textarea
-                        v-model="task.description"
-                        rows="1"
-                        placeholder="任务描述（可选）"
-                        class="w-full px-3 py-1.5 bg-white border border-gray-200 rounded text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all resize-none"
-                      ></textarea>
                     </div>
 
                     <!-- 删除按钮 -->
@@ -222,7 +216,6 @@
                     >
                     <div class="flex-1">
                       <p class="text-sm font-medium text-gray-800">{{ task.title }}</p>
-                      <p v-if="task.description" class="text-xs text-gray-500 mt-1">{{ task.description }}</p>
                     </div>
                   </label>
                 </div>
@@ -324,8 +317,7 @@ watch(() => props.open, (isOpen) => {
         tags: [...(props.template.tags || [])],
         tasks: (props.template.tasks || []).map(t => ({
           id: `task_${Date.now()}_${Math.random()}`,
-          title: t.title,
-          description: t.description || ''
+          title: typeof t === 'string' ? t : t.title
         }))
       }
       mode.value = 'manual'
@@ -352,8 +344,7 @@ watch(() => props.open, (isOpen) => {
 function addTask() {
   templateData.value.tasks.push({
     id: `task_${Date.now()}_${Math.random()}`,
-    title: '',
-    description: ''
+    title: ''
   })
 }
 
@@ -408,17 +399,11 @@ function handleSave() {
     // 手动创建：使用编辑的任务
     saveData.tasks = templateData.value.tasks
       .filter(t => t.title.trim())
-      .map(t => ({
-        title: t.title,
-        description: t.description
-      }))
+      .map(t => t.title.trim())
   } else {
     // 从项目生成：使用选中的任务
     const selectedTasks = existingTasks.value.filter(t => selectedTaskIds.value.includes(t.id))
-    saveData.tasks = selectedTasks.map(t => ({
-      title: t.title,
-      description: t.description || ''
-    }))
+    saveData.tasks = selectedTasks.map(t => t.title)
   }
 
   emit('save', saveData)

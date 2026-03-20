@@ -144,10 +144,13 @@ def generate_conclusion():
                 'message': '任务不能为空'
             }), 400
 
-        # 如果 task 是对象，从中提取任务描述
+        # 如果 task 是对象，从中提取任务描述 - 优先使用 title
         if isinstance(task_input, dict):
-            # 优先使用 description，其次使用 title
-            task = task_input.get('description', task_input.get('title', ''))
+            # 优先使用 title，如果不存在再使用 description
+            task = task_input.get('title', task_input.get('description', ''))
+            # 如果 title 也是空，使用 description 作为 fallback
+            if not task:
+                task = task_input.get('description', '')
         else:
             # 如果是字符串，直接使用
             task = str(task_input)
@@ -222,10 +225,13 @@ def review_task():
                 'message': '任务不能为空'
             }), 400
 
-        # 如果 task 是对象，从中提取任务描述
+        # 如果 task 是对象，从中提取任务描述 - 优先使用 title
         if isinstance(task_input, dict):
-            # 优先使用 description，其次使用 title
-            task = task_input.get('description', task_input.get('title', ''))
+            # 优先使用 title，如果不存在再使用 description
+            task = task_input.get('title', task_input.get('description', ''))
+            # 如果 title 也是空，使用 description 作为 fallback
+            if not task:
+                task = task_input.get('description', '')
         else:
             # 如果是字符串，直接使用
             task = str(task_input)
@@ -290,9 +296,13 @@ def review_task_slices():
         if not slices:
             return jsonify({'code': 400, 'message': '切片不能为空'}), 400
 
-        # 提取任务描述
+        # 提取任务描述 - 优先使用 title，因为 description 可能为空字符串
         if isinstance(task_input, dict):
-            task = task_input.get('description', task_input.get('title', ''))
+            # 优先使用 title，如果不存在再使用 description
+            task = task_input.get('title', task_input.get('description', ''))
+            # 如果 title 也是空，使用 description 作为 fallback
+            if not task:
+                task = task_input.get('description', '')
         else:
             task = str(task_input)
 
@@ -376,9 +386,13 @@ def summarize_reviews():
         if not task_input:
             return jsonify({'code': 400, 'message': '任务不能为空'}), 400
 
-        # 提取任务描述
+        # 提取任务描述 - 优先使用 title，因为 description 可能为空字符串
         if isinstance(task_input, dict):
-            task = task_input.get('description', task_input.get('title', ''))
+            # 优先使用 title，如果不存在再使用 description
+            task = task_input.get('title', task_input.get('description', ''))
+            # 如果 title 也是空，使用 description 作为 fallback
+            if not task:
+                task = task_input.get('description', '')
         else:
             task = str(task_input)
 

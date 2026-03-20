@@ -19,18 +19,9 @@ const DEFAULT_TEMPLATES = [
     tags: ['基础', '常用'],
     createdAt: new Date().toISOString(),
     tasks: [
-      {
-        title: '检查投标文件完整性',
-        description: '确认投标文件包含所有必需的章节和附件'
-      },
-      {
-        title: '验证资质文件',
-        description: '检查企业资质、营业执照等文件是否有效'
-      },
-      {
-        title: '核对报价信息',
-        description: '确认报价是否符合招标文件要求'
-      }
+      '检查投标文件完整性，确认投标文件包含所有必需的章节和附件',
+      '验证资质文件，检查企业资质、营业执照等文件是否有效',
+      '核对报价信息，确认报价是否符合招标文件要求'
     ]
   },
   {
@@ -40,22 +31,10 @@ const DEFAULT_TEMPLATES = [
     tags: ['技术', '方案'],
     createdAt: new Date().toISOString(),
     tasks: [
-      {
-        title: '技术方案可行性',
-        description: '评估技术方案是否可行且符合要求'
-      },
-      {
-        title: '技术指标符合性',
-        description: '核对技术参数是否达到招标要求'
-      },
-      {
-        title: '项目实施计划',
-        description: '检查项目实施计划是否合理完整'
-      },
-      {
-        title: '团队资质审核',
-        description: '验证项目团队人员的资质和经验'
-      }
+      '技术方案可行性，评估技术方案是否可行且符合要求',
+      '技术指标符合性，核对技术参数是否达到招标要求',
+      '项目实施计划，检查项目实施计划是否合理完整',
+      '团队资质审核，验证项目团队人员的资质和经验'
     ]
   },
   {
@@ -65,22 +44,10 @@ const DEFAULT_TEMPLATES = [
     tags: ['商务', '合同'],
     createdAt: new Date().toISOString(),
     tasks: [
-      {
-        title: '付款条款审核',
-        description: '检查付款方式和比例是否符合要求'
-      },
-      {
-        title: '交付期限核对',
-        description: '确认交付期限是否满足招标要求'
-      },
-      {
-        title: '违约条款审查',
-        description: '审查违约责任条款的合理性'
-      },
-      {
-        title: '质保期约定',
-        description: '检查质保期是否符合规定'
-      }
+      '付款条款审核，检查付款方式和比例是否符合要求',
+      '交付期限核对，确认交付期限是否满足招标要求',
+      '违约条款审查，审查违约责任条款的合理性',
+      '质保期约定，检查质保期是否符合规定'
     ]
   }
 ]
@@ -193,10 +160,7 @@ export function createTemplateFromTasks(templateInfo, tasks) {
     description: templateInfo.description || '',
     tags: templateInfo.tags || [],
     createdAt: new Date().toISOString(),
-    tasks: tasks.map(task => ({
-      title: task.title,
-      description: task.description || ''
-    }))
+    tasks: tasks.map(task => task.title || task)
   }
 
   return saveTemplate(template)

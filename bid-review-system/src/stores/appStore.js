@@ -193,10 +193,6 @@ export const useAppStore = defineStore('app', {
         throw new Error('任务ID不能为空')
       }
 
-      if (!this.contextText) {
-        throw new Error('投标文件（context）不能为空')
-      }
-
       // 获取任务对象
       const task = this.tasks.find(t => t.id === taskId)
       if (!task) {
@@ -208,11 +204,19 @@ export const useAppStore = defineStore('app', {
       this.startReviewing()
 
       try {
-        // 调用 hiagent API - 传递 task 和 context
-        const response = await reviewTask({
-          task,
-          context: this.contextText
-        })
+        // 如果有切片，使用切片审核；否则检查 contextText
+        if (this.bidSlices.length > 0) {
+          await this.reviewTaskWithSlices(taskId)
+        } else {
+          if (!this.contextText) {
+            throw new Error('投标文件不能为空')
+          }
+          // 调用 hiagent API - 传递 task 和 context
+          const response = await reviewTask({
+            task,
+            context: this.contextText
+          })
+        }
 
         // 更新任务
         this.updateTask(taskId, {
@@ -351,8 +355,8 @@ export const useAppStore = defineStore('app', {
       // 将模版任务追加到现有任务列表
       const newTasks = template.tasks.map(task => ({
         id: Date.now() + Math.random(),
-        title: task.title,
-        description: task.description || '',
+        title: typeof task === 'string' ? task : task.title,
+        description: '',
         subtasks: [],
         createdAt: new Date(),
         updatedAt: new Date()
