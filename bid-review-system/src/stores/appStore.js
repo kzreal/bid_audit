@@ -176,8 +176,9 @@ export const useAppStore = defineStore('app', {
           updatedAt: new Date()
         }))
 
-        this.setTasks(tasksWithTime)
-        return tasksWithTime
+        // 追加模式：将新任务追加到现有任务列表
+        this.tasks = [...this.tasks, ...tasksWithTime]
+        return [...this.tasks, ...tasksWithTime]
       } catch (error) {
         console.error('生成任务失败:', error)
         this.setError(error.message || '生成任务失败，请重试')
