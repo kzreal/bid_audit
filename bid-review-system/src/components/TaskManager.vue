@@ -106,11 +106,11 @@ const getStatusCount = (status) => {
     case 'reviewed':
       return store.tasks.filter(task => task.review).length
     case 'pass':
-      return store.tasks.filter(task => task.review?.status === '通过').length
+      return store.tasks.filter(task => task.review?.conclusion === '通过').length
     case 'fail':
-      return store.tasks.filter(task => task.review?.status === '不通过').length
+      return store.tasks.filter(task => task.review?.conclusion === '不通过').length
     case 'pending-review':
-      return store.tasks.filter(task => task.review?.status === '待确认').length
+      return store.tasks.filter(task => task.review?.conclusion === '待确认').length
     default:
       return 0
   }

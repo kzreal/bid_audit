@@ -22,10 +22,10 @@
         <span class="flex items-center">
           <span>审核结论</span>
           <span class="text-xl ml-2">
-            <span v-if="selectedTask.review.status === '通过'" class="text-green-600">
+            <span v-if="selectedTask.review.conclusion === '通过'" class="text-green-600">
               ✅ 通过
             </span>
-            <span v-else-if="selectedTask.review.status === '不通过'" class="text-red-600">
+            <span v-else-if="selectedTask.review.conclusion === '不通过'" class="text-red-600">
               ❌ 不通过
             </span>
             <span v-else class="text-yellow-600">
@@ -45,6 +45,7 @@
           <span v-else>重新审核</span>
         </button>
       </h3>
+      <p v-if="selectedTask.review.conclusion" class="text-gray-700 mt-2">{{ selectedTask.review.conclusion }}</p>
     </div>
 
     <!-- 审核原因 -->

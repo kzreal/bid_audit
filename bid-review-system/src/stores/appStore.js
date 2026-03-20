@@ -37,9 +37,9 @@ export const useAppStore = defineStore('app', {
     taskStats: (state) => {
       const total = state.tasks.length
       const reviewed = state.tasks.filter(task => task.review).length
-      const passed = state.tasks.filter(task => task.review?.status === '通过').length
-      const failed = state.tasks.filter(task => task.review?.status === '不通过').length
-      const pending = state.tasks.filter(task => task.review?.status === '待确认').length
+      const passed = state.tasks.filter(task => task.review?.conclusion === '通过').length
+      const failed = state.tasks.filter(task => task.review?.conclusion === '不通过').length
+      const pending = state.tasks.filter(task => task.review?.conclusion === '待确认').length
 
       return { total, reviewed, passed, failed, pending }
     },

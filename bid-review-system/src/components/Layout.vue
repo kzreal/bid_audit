@@ -304,9 +304,8 @@ const handleReviewAll = async () => {
               store.updateTask(task.id, {
                 review: {
                   ...task.review,
-                  status: conclusionResponse.data.status || '待确认',
+                  conclusion: conclusionResponse.data.conclusion || '待确认',
                   reason: conclusionResponse.data.reason || '',
-                  conclusion: conclusionResponse.data.conclusion || '',
                   evidence: conclusionResponse.data.evidence || '待补充',
                   bidSource: conclusionResponse.data.evidence || '待补充',
                   requirementSource: conclusionResponse.data.requirementSource || '招标要求'
@@ -321,9 +320,8 @@ const handleReviewAll = async () => {
             store.updateTask(task.id, {
               review: {
                 ...task.review,
-                status: summaryData.status || '待确认',
-                reason: summaryData.reason || '',
-                conclusion: summaryData.conclusion || ''
+                conclusion: summaryData.conclusion || '待确认',
+                reason: summaryData.reason || ''
               }
             })
           }

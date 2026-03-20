@@ -28,9 +28,9 @@
               <span class="inline-block w-2 h-2 bg-gray-400 rounded-full mr-1"></span>
               待审核
             </span>
-            <span v-else :class="['text-xs', getStatusClass(task.review.status)]">
-              <span class="inline-block w-2 h-2 rounded-full mr-1" :class="getStatusBg(task.review.status)"></span>
-              {{ task.review.status }}
+            <span v-else :class="['text-xs', getStatusClass(task.review.conclusion)]">
+              <span class="inline-block w-2 h-2 rounded-full mr-1" :class="getStatusBg(task.review.conclusion)"></span>
+              {{ task.review.conclusion }}
             </span>
           </div>
 
@@ -118,11 +118,11 @@ const filteredTasks = computed(() => {
     case 'reviewed':
       return props.tasks.filter(task => task.review)
     case 'pass':
-      return props.tasks.filter(task => task.review?.status === '通过')
+      return props.tasks.filter(task => task.review?.conclusion === '通过')
     case 'fail':
-      return props.tasks.filter(task => task.review?.status === '不通过')
+      return props.tasks.filter(task => task.review?.conclusion === '不通过')
     case 'pending-review':
-      return props.tasks.filter(task => task.review?.status === '待确认')
+      return props.tasks.filter(task => task.review?.conclusion === '待确认')
     default:
       return props.tasks
   }
@@ -132,9 +132,9 @@ const filteredTasks = computed(() => {
 const taskStats = computed(() => {
   const total = props.tasks.length
   const reviewed = props.tasks.filter(task => task.review).length
-  const passed = props.tasks.filter(task => task.review?.status === '通过').length
-  const failed = props.tasks.filter(task => task.review?.status === '不通过').length
-  const pending = props.tasks.filter(task => task.review?.status === '待确认').length
+  const passed = props.tasks.filter(task => task.review?.conclusion === '通过').length
+  const failed = props.tasks.filter(task => task.review?.conclusion === '不通过').length
+  const pending = props.tasks.filter(task => task.review?.conclusion === '待确认').length
 
   return { total, reviewed, passed, failed, pending }
 })

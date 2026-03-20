@@ -226,12 +226,11 @@ export const generateConclusion = async (params) => {
     http.post('/hiagent/generate-conclusion', requestData)
   )
 
-  // 后端返回格式: {code: 200, data: {conclusion, reason, evidence}, status: "...", message: "...", raw_text: "..."}
+  // 后端返回格式: {code: 200, data: {conclusion, reason, evidence}, message: "...", raw_text: "..."}
   const data = response.data || {}
   return {
     data: {
-      status: response.status || '待确认',
-      conclusion: data.conclusion || '',
+      conclusion: data.conclusion || '待确认',
       reason: data.reason || '暂无原因说明',
       evidence: data.evidence || '待补充',
       requirementSource: '招标要求',

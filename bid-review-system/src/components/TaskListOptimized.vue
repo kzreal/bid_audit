@@ -36,9 +36,9 @@
               <span class="inline-block w-2 h-2 bg-gray-400 rounded-full mr-1"></span>
               待审核
             </span>
-            <span v-else :class="['text-xs', getStatusClass(task.review.status)]">
-              <span class="inline-block w-2 h-2 rounded-full mr-1" :class="getStatusBg(task.review.status)"></span>
-              {{ task.review.status }}
+            <span v-else :class="['text-xs', getStatusClass(task.review.conclusion)]">
+              <span class="inline-block w-2 h-2 rounded-full mr-1" :class="getStatusBg(task.review.conclusion)"></span>
+              {{ task.review.conclusion }}
             </span>
           </div>
         </div>
