@@ -1,27 +1,40 @@
 <template>
-  <div class="main-container h-screen flex">
+  <div class="main-container h-screen flex bg-gray-50">
     <!-- 左侧：招标信息输入 -->
-    <div class="w-[35%] bg-white border-r border-gray-200 flex flex-col">
-      <header class="bg-blue-600 text-white p-4">
-        <h1 class="text-xl font-semibold">投标文件审核系统</h1>
-        <p class="text-blue-100 text-sm mt-1">智能分析，精准审核</p>
-      </header>
-
-      <div class="p-4 flex-1 overflow-y-auto">
-        <!-- 错误提示 -->
-        <div v-if="store.error" class="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-          <div class="flex items-start">
-            <svg class="w-5 h-5 text-red-500 mt-0.5 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+    <div class="w-[35%] bg-white border-r border-gray-100 flex flex-col shadow-sm">
+      <header class="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-6 shadow-sm">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-lg bg-white/20 flex items-center justify-center backdrop-blur-sm">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
             </svg>
-            <div class="flex-1">
-              <p class="text-sm text-red-700">{{ store.error }}</p>
-              <button @click="store.clearError()" class="mt-1 text-xs text-red-600 hover:text-red-800">
-                关闭
-              </button>
-            </div>
+          </div>
+          <div>
+            <h1 class="text-xl font-semibold tracking-tight">投标文件审核系统</h1>
+            <p class="text-blue-100 text-sm mt-0.5">智能分析 · 精准审核 · 高效决策</p>
           </div>
         </div>
+      </header>
+
+      <div class="p-6 flex-1 overflow-y-auto">
+        <!-- 错误提示 -->
+        <transition name="slide-fade">
+          <div v-if="store.error" class="mb-6 p-4 bg-red-50 border border-red-100 rounded-xl shadow-sm">
+            <div class="flex items-start gap-3">
+              <div class="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
+                <svg class="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+              </div>
+              <div class="flex-1 min-w-0">
+                <p class="text-sm text-red-700 font-medium">{{ store.error }}</p>
+                <button @click="store.clearError()" class="mt-2 text-xs text-red-600 hover:text-red-800 font-medium transition-colors">
+                  关闭提示
+                </button>
+              </div>
+            </div>
+          </div>
+        </transition>
 
         <!-- 招标信息输入区域 -->
         <bid-requirement-input />
@@ -33,9 +46,9 @@
         <button
           @click="startAnalysis"
           :disabled="!store.canAnalyze || store.loading"
-          class="w-full bg-blue-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+          class="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white py-3.5 px-6 rounded-xl font-semibold shadow-lg shadow-blue-500/25 hover:shadow-xl hover:shadow-blue-500/30 transition-all duration-300 disabled:from-gray-300 disabled:to-gray-400 disabled:shadow-none disabled:cursor-not-allowed hover:-translate-y-0.5 active:translate-y-0"
         >
-          <span v-if="store.loading" class="inline-flex items-center">
+          <span v-if="store.loading" class="inline-flex items-center justify-center">
             <span class="loading-dots mr-2">
               <span></span>
               <span></span>
@@ -43,44 +56,54 @@
             </span>
             分析中...
           </span>
-          <span v-else>开始分析</span>
+          <span v-else class="flex items-center justify-center gap-2">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+            </svg>
+            开始分析
+          </span>
         </button>
       </div>
     </div>
 
     <!-- 中间：任务列表 -->
-    <div class="w-[30%] bg-gray-50 border-r border-gray-200 flex flex-col">
-      <header class="bg-white border-b border-gray-200 p-4">
-        <div class="flex items-center justify-between">
-          <div>
+    <div class="w-[30%] bg-gray-50 border-r border-gray-100 flex flex-col">
+      <header class="bg-white border-b border-gray-100 p-5 shadow-sm sticky top-0 z-10">
+        <div class="flex items-center justify-between gap-4">
+          <div class="flex-1 min-w-0">
             <h2 class="text-lg font-semibold text-gray-800">任务列表</h2>
-            <p class="text-gray-600 text-sm mt-1">
-              共 {{ tasks.length }} 个任务
-              <span v-if="store.taskStats.reviewed" class="ml-2">
-                (已审核: {{ store.taskStats.reviewed }})
+            <p class="text-gray-500 text-sm mt-1">
+              <span class="font-medium text-gray-700">{{ tasks.length }}</span> 个任务
+              <span v-if="store.taskStats.reviewed" class="ml-2 text-gray-400">
+                · 已审核 <span class="text-green-600 font-medium">{{ store.taskStats.reviewed }}</span>
               </span>
             </p>
           </div>
           <!-- 全部审核按钮 -->
           <button
             @click="handleReviewAll"
-            :disabled="store.loading"
-            class="bg-blue-600 text-white px-3 py-1.5 rounded-lg text-sm hover:bg-blue-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center"
+            :disabled="store.loading || tasks.filter(t => !t.review).length === 0"
+            class="bg-white border-2 border-blue-600 text-blue-600 px-4 py-2 rounded-xl text-sm font-semibold hover:bg-blue-50 transition-all duration-300 disabled:border-gray-200 disabled:text-gray-400 disabled:bg-gray-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-sm whitespace-nowrap"
           >
             <span v-if="store.loading" class="inline-flex items-center">
-              <span class="loading-dots mr-2">
+              <span class="loading-dots-mini mr-2">
                 <span></span>
                 <span></span>
                 <span></span>
               </span>
               审核中...
             </span>
-            <span v-else>全部审核 ({{ tasks.filter(t => !t.review).length }})</span>
+            <span v-else class="flex items-center gap-2">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+              </svg>
+              全部审核 ({{ tasks.filter(t => !t.review).length }})
+            </span>
           </button>
         </div>
       </header>
 
-      <div class="flex-1 overflow-y-auto">
+      <div class="flex-1 overflow-y-auto p-4">
         <task-list
           :tasks="tasks"
           :selected-task-id="store.selectedTaskId"
@@ -91,17 +114,34 @@
 
     <!-- 右侧：审核详情 -->
     <div class="flex-1 bg-white flex flex-col overflow-hidden">
-      <header v-if="selectedTask" class="bg-white border-b border-gray-200 p-4 flex-shrink-0 flex justify-between items-center">
-        <div>
-          <h2 class="text-lg font-semibold text-gray-800">任务审核</h2>
-          <p class="text-gray-600 text-sm mt-1">{{ selectedTask.title }}</p>
+      <header v-if="selectedTask" class="bg-white border-b border-gray-100 p-6 flex-shrink-0 flex justify-between items-start gap-4 shadow-sm sticky top-0 z-10">
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center gap-2 mb-2">
+            <span class="px-2.5 py-1 rounded-lg text-xs font-medium bg-blue-50 text-blue-700">任务审核</span>
+            <span v-if="selectedTask.review" class="review-badge text-xs">{{ selectedTask.review.conclusion }}</span>
+          </div>
+          <h2 class="text-lg font-semibold text-gray-800 leading-relaxed">{{ selectedTask.title }}</h2>
+          <p v-if="selectedTask.description" class="text-gray-500 text-sm mt-2 leading-relaxed">{{ selectedTask.description }}</p>
         </div>
-        <p v-if="selectedTask.review && selectedTask.review.createdAt" class="text-sm text-gray-500">
-          审核时间: {{ formatDateTime(selectedTask.review.createdAt) }}
-        </p>
+        <div v-if="selectedTask.review && selectedTask.review.createdAt" class="flex-shrink-0 text-right">
+          <p class="text-xs text-gray-400 font-medium">审核时间</p>
+          <p class="text-sm text-gray-600 mt-1">{{ formatDateTime(selectedTask.review.createdAt) }}</p>
+        </div>
       </header>
 
-      <div class="flex-1 overflow-y-auto p-6">
+      <!-- 空状态 -->
+      <div v-else class="flex-1 flex items-center justify-center p-8">
+        <div class="text-center">
+          <div class="w-20 h-20 mx-auto mb-4 rounded-2xl bg-gray-50 flex items-center justify-center">
+            <svg class="w-10 h-10 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+            </svg>
+          </div>
+          <p class="text-gray-400 text-sm">请从任务列表中选择一个任务查看详情</p>
+        </div>
+      </div>
+
+      <div v-if="selectedTask" class="flex-1 overflow-y-auto p-8">
         <review-detail
           :selected-task="selectedTask"
           :reviewing="store.reviewing"
@@ -123,7 +163,7 @@
 .loading-dots span {
   width: 6px;
   height: 6px;
-  background: linear-gradient(135deg, #2563eb, #3b82f6);
+  background: white;
   border-radius: 50%;
   animation: loading-pulse 1.4s ease-in-out infinite both;
 }
@@ -136,6 +176,29 @@
   animation-delay: -0.16s;
 }
 
+/* 迷你加载动画 */
+.loading-dots-mini {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.loading-dots-mini span {
+  width: 4px;
+  height: 4px;
+  background: #2563eb;
+  border-radius: 50%;
+  animation: loading-pulse 1.4s ease-in-out infinite both;
+}
+
+.loading-dots-mini span:nth-child(1) {
+  animation-delay: -0.32s;
+}
+
+.loading-dots-mini span:nth-child(2) {
+  animation-delay: -0.16s;
+}
+
 @keyframes loading-pulse {
   0%, 80%, 100% {
     transform: scale(0);
@@ -145,6 +208,70 @@
     transform: scale(1);
     opacity: 1;
   }
+}
+
+/* 滑动淡入淡出过渡 */
+.slide-fade-enter-active {
+  transition: all 0.3s ease-out;
+}
+
+.slide-fade-leave-active {
+  transition: all 0.2s ease-in;
+}
+
+.slide-fade-enter-from {
+  opacity: 0;
+  transform: translateY(-10px);
+}
+
+.slide-fade-leave-to {
+  opacity: 0;
+  transform: translateY(-10px);
+}
+
+/* 审核徽章样式 */
+.review-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.75rem;
+  border-radius: 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1;
+}
+
+.review-badge.pass {
+  background-color: #d1fae5;
+  color: #065f46;
+}
+
+.review-badge.fail {
+  background-color: #fee2e2;
+  color: #991b1b;
+}
+
+.review-badge.pending {
+  background-color: #fef3c7;
+  color: #92400e;
+}
+
+/* 滚动条美化 */
+:deep(*)::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+:deep(*)::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+:deep(*)::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 3px;
+}
+
+:deep(*)::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
 }
 </style>
 

@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { generateTasks, reviewTask, reviewTaskSlices } from '../services/hiagentService'
+import { generateTasks, reviewTask, reviewTaskSlices, generateConclusion } from '../services/hiagentService'
 import { getHiAgentType } from '../types'
 
 export const useAppStore = defineStore('app', {
@@ -267,10 +267,23 @@ export const useAppStore = defineStore('app', {
           slices: slicesContent
         })
 
+        const reviews = response.data?.slices_reviews || []
+
+        // 调用 generate-conclusion 生成最终结论
+        const conclusionResponse = await generateConclusion({
+          task,
+          reviews
+        })
+
         // 更新任务
         this.updateTask(taskId, {
           review: {
             ...response.data,
+            conclusion: conclusionResponse.data?.conclusion || '待确认',
+            reason: conclusionResponse.data?.reason || '',
+            evidence: conclusionResponse.data?.evidence || '待补充',
+            bidSource: conclusionResponse.data?.evidence || '待补充',
+            requirementSource: conclusionResponse.data?.requirementSource || '招标要求',
             createdAt: new Date()
           },
           updatedAt: new Date()
