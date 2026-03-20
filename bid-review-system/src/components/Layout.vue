@@ -114,18 +114,13 @@
 
     <!-- 右侧：审核详情 -->
     <div class="flex-1 bg-white flex flex-col overflow-hidden">
-      <header v-if="selectedTask" class="bg-white border-b border-gray-100 p-6 flex-shrink-0 flex justify-between items-start gap-4 shadow-sm sticky top-0 z-10">
+      <header v-if="selectedTask" class="bg-white border-b border-gray-100 p-5 flex-shrink-0 flex justify-between items-start gap-4 shadow-sm sticky top-0 z-10">
         <div class="flex-1 min-w-0">
-          <div class="flex items-center gap-2 mb-2">
-            <span class="px-2.5 py-1 rounded-lg text-xs font-medium bg-blue-50 text-blue-700">任务审核</span>
-            <span v-if="selectedTask.review" class="review-badge text-xs">{{ selectedTask.review.conclusion }}</span>
-          </div>
-          <h2 class="text-lg font-semibold text-gray-800 leading-relaxed">{{ selectedTask.title }}</h2>
-          <p v-if="selectedTask.description" class="text-gray-500 text-sm mt-2 leading-relaxed">{{ selectedTask.description }}</p>
+          <h2 class="text-base font-semibold text-gray-800 leading-relaxed">{{ selectedTask.title }}</h2>
+          <p v-if="selectedTask.description" class="text-gray-500 text-sm mt-1.5 leading-relaxed">{{ selectedTask.description }}</p>
         </div>
         <div v-if="selectedTask.review && selectedTask.review.createdAt" class="flex-shrink-0 text-right">
-          <p class="text-xs text-gray-400 font-medium">审核时间</p>
-          <p class="text-sm text-gray-600 mt-1">{{ formatDateTime(selectedTask.review.createdAt) }}</p>
+          <p class="text-xs text-gray-400 font-medium">{{ formatDateTime(selectedTask.review.createdAt) }}</p>
         </div>
       </header>
 
@@ -141,7 +136,7 @@
         </div>
       </div>
 
-      <div v-if="selectedTask" class="flex-1 overflow-y-auto p-8">
+      <div v-if="selectedTask" class="flex-1 overflow-y-auto p-6">
         <review-detail
           :selected-task="selectedTask"
           :reviewing="store.reviewing"

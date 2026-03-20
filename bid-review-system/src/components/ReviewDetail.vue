@@ -7,28 +7,28 @@
   </div>
 
   <!-- 审核完成状态 -->
-  <div v-else-if="selectedTask.review" class="space-y-4">
+  <div v-else-if="selectedTask.review" class="space-y-3">
     <!-- 审核结论卡片 -->
-    <div class="bg-white border border-gray-100 rounded-2xl p-8 shadow-sm">
-      <div class="flex flex-col items-center justify-center gap-4">
-        <div class="w-16 h-16 rounded-full flex items-center justify-center" :class="getConclusionIconBg(selectedTask.review.conclusion)">
-          <svg v-if="selectedTask.review.conclusion === '通过'" class="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <div class="bg-white border border-gray-100 rounded-xl p-4 shadow-sm">
+      <div class="flex flex-col items-center justify-center gap-3">
+        <div class="w-12 h-12 rounded-full flex items-center justify-center" :class="getConclusionIconBg(selectedTask.review.conclusion)">
+          <svg v-if="selectedTask.review.conclusion === '通过'" class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
           </svg>
-          <svg v-else-if="selectedTask.review.conclusion === '不通过'" class="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg v-else-if="selectedTask.review.conclusion === '不通过'" class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
           </svg>
-          <svg v-else class="w-8 h-8 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg v-else class="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
           </svg>
         </div>
-        <span :class="['text-3xl font-bold', getConclusionTextClass(selectedTask.review.conclusion)]">
+        <span :class="['text-xl font-bold', getConclusionTextClass(selectedTask.review.conclusion)]">
           {{ selectedTask.review.conclusion }}
         </span>
         <button
           @click="reviewTask"
           :disabled="store.loading"
-          class="mt-2 bg-white border-2 border-blue-600 text-blue-600 px-5 py-2 rounded-xl text-sm font-semibold hover:bg-blue-50 transition-all duration-300 disabled:border-gray-200 disabled:text-gray-400 disabled:bg-gray-50 disabled:cursor-not-allowed flex items-center gap-2"
+          class="mt-1 bg-white border border-blue-600 text-blue-600 px-3 py-1.5 rounded-lg text-sm font-semibold hover:bg-blue-50 transition-all duration-300 disabled:border-gray-200 disabled:text-gray-400 disabled:bg-gray-50 disabled:cursor-not-allowed flex items-center gap-2"
         >
           <span v-if="store.loading" class="inline-flex items-center">
             <div class="loader-mini mr-2"></div>
