@@ -22,7 +22,12 @@ export const useAppStore = defineStore('app', {
 
     // UI状态
     loading: false,
-    error: null
+    error: null,
+
+    // 模版功能
+    templateDrawerOpen: false,           // 模版库抽屉开关
+    currentEditingTemplate: null,        // 当前编辑的模版
+    appliedTemplateHistory: []           // 应用历史（用于撤销）
   }),
 
   getters: {
@@ -55,6 +60,11 @@ export const useAppStore = defineStore('app', {
     // 是否使用多切片审核
     useSliceReview: (state) => {
       return state.bidSlices.length > 0
+    },
+
+    // 是否可以撤销模版应用
+    canUndoTemplateApplication: (state) => {
+      return state.appliedTemplateHistory.length > 0
     }
   },
 
@@ -300,6 +310,75 @@ export const useAppStore = defineStore('app', {
         }
         return this.apiStatus
       }
+    },
+
+    // ========== 模版功能相关 ==========
+
+    // 打开模版库抽屉
+    openTemplateDrawer() {
+      this.templateDrawerOpen = true
+    },
+
+    // 关闭模版库抽屉
+    closeTemplateDrawer() {
+      this.templateDrawerOpen = false
+    },
+
+    // 切换模版库抽屉
+    toggleTemplateDrawer() {
+      this.templateDrawerOpen = !this.templateDrawerOpen
+    },
+
+    // 设置当前编辑的模版
+    setCurrentEditingTemplate(template) {
+      this.currentEditingTemplate = template
+    },
+
+    // 清空当前编辑的模版
+    clearCurrentEditingTemplate() {
+      this.currentEditingTemplate = null
+    },
+
+    // 应用模版到任务列表
+    applyTemplate(template) {
+      if (!template || !template.tasks || template.tasks.length === 0) {
+        return
+      }
+
+      // 保存当前任务列表到历史记录（用于撤销）
+      this.appliedTemplateHistory.push([...this.tasks])
+
+      // 将模版任务追加到现有任务列表
+      const newTasks = template.tasks.map(task => ({
+        id: Date.now() + Math.random(),
+        title: task.title,
+        description: task.description || '',
+        subtasks: [],
+        createdAt: new Date(),
+        updatedAt: new Date()
+      }))
+
+      this.tasks = [...this.tasks, ...newTasks]
+
+      // 清空选中状态
+      this.selectedTaskId = null
+    },
+
+    // 撤销最近一次模版应用
+    undoTemplateApplication() {
+      if (this.appliedTemplateHistory.length === 0) {
+        return false
+      }
+
+      // 恢复上一个任务列表状态
+      this.tasks = this.appliedTemplateHistory.pop()
+      this.selectedTaskId = null
+      return true
+    },
+
+    // 清空应用历史
+    clearTemplateHistory() {
+      this.appliedTemplateHistory = []
     }
   }
 })

@@ -17,6 +17,17 @@
       </header>
 
       <div class="p-6 flex-1 overflow-y-auto">
+        <!-- 模版库入口 -->
+        <button
+          @click="store.openTemplateDrawer()"
+          class="w-full mb-6 bg-gradient-to-r from-blue-50 to-blue-100 border-2 border-blue-200 text-blue-700 py-3 px-4 rounded-xl font-semibold shadow-sm hover:shadow-md hover:border-blue-300 transition-all duration-300 flex items-center justify-center gap-2"
+        >
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
+          </svg>
+          模版库
+        </button>
+
         <!-- 错误提示 -->
         <transition name="slide-fade">
           <div v-if="store.error" class="mb-6 p-4 bg-red-50 border border-red-100 rounded-xl shadow-sm">
@@ -79,27 +90,41 @@
               </span>
             </p>
           </div>
-          <!-- 全部审核按钮 -->
-          <button
-            @click="handleReviewAll"
-            :disabled="store.loading || tasks.filter(t => !t.review).length === 0"
-            class="bg-white border-2 border-blue-600 text-blue-600 px-4 py-2 rounded-xl text-sm font-semibold hover:bg-blue-50 transition-all duration-300 disabled:border-gray-200 disabled:text-gray-400 disabled:bg-gray-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-sm whitespace-nowrap"
-          >
-            <span v-if="store.loading" class="inline-flex items-center">
-              <span class="loading-dots-mini mr-2">
-                <span></span>
-                <span></span>
-                <span></span>
-              </span>
-              审核中...
-            </span>
-            <span v-else class="flex items-center gap-2">
+          <!-- 操作按钮 -->
+          <div class="flex items-center gap-2">
+            <!-- 撤销按钮 -->
+            <button
+              v-if="store.canUndoTemplateApplication"
+              @click="handleUndoTemplate"
+              class="bg-white border-2 border-gray-200 text-gray-600 px-3 py-2 rounded-xl text-sm font-medium hover:bg-gray-50 transition-all duration-300 disabled:border-gray-200 disabled:text-gray-400 disabled:bg-gray-50 disabled:cursor-not-allowed flex items-center gap-1.5 shadow-sm whitespace-nowrap"
+            >
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"></path>
               </svg>
-              全部审核 ({{ tasks.filter(t => !t.review).length }})
-            </span>
-          </button>
+              撤销
+            </button>
+            <!-- 全部审核按钮 -->
+            <button
+              @click="handleReviewAll"
+              :disabled="store.loading || tasks.filter(t => !t.review).length === 0"
+              class="bg-white border-2 border-blue-600 text-blue-600 px-4 py-2 rounded-xl text-sm font-semibold hover:bg-blue-50 transition-all duration-300 disabled:border-gray-200 disabled:text-gray-400 disabled:bg-gray-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-sm whitespace-nowrap"
+            >
+              <span v-if="store.loading" class="inline-flex items-center">
+                <span class="loading-dots-mini mr-2">
+                  <span></span>
+                  <span></span>
+                  <span></span>
+                </span>
+                审核中...
+              </span>
+              <span v-else class="flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+                </svg>
+                全部审核 ({{ tasks.filter(t => !t.review).length }})
+              </span>
+            </button>
+          </div>
         </div>
       </header>
 
@@ -144,6 +169,24 @@
         />
       </div>
     </div>
+
+    <!-- 模版库抽屉 -->
+    <template-drawer
+      :open="store.templateDrawerOpen"
+      :templates="allTemplates"
+      @close="store.closeTemplateDrawer"
+      @create-template="handleCreateTemplate"
+      @apply="handleApplyTemplate"
+      @edit="handleEditTemplate"
+    />
+
+    <!-- 模版编辑器 -->
+    <template-editor
+      :open="editorOpen"
+      :template="store.currentEditingTemplate"
+      @save="handleSaveTemplate"
+      @cancel="editorOpen = false"
+    />
   </div>
 </template>
 
@@ -274,12 +317,18 @@
 import { ref, computed, onMounted } from 'vue'
 import { useAppStore } from '../stores/appStore'
 import { generateConclusion } from '../services/hiagentService'
+import { getAllTemplates, saveTemplate, getTemplateById } from '../services/templateService'
 import BidRequirementInput from './BidRequirementInput.vue'
 import BidFileInput from './BidFileInput.vue'
 import TaskList from './TaskListOptimized.vue'
 import ReviewDetail from './ReviewDetail.vue'
+import TemplateDrawer from './TemplateDrawer.vue'
+import TemplateEditor from './TemplateEditor.vue'
 
 const store = useAppStore()
+
+// 模版编辑器开关
+const editorOpen = ref(false)
 
 // 组件挂载时检查 API 状态
 onMounted(async () => {
@@ -295,6 +344,17 @@ const tasks = computed(() => store.tasks)
 
 // 选中的任务（从 store 获取）
 const selectedTask = computed(() => store.selectedTask)
+
+// 所有模版
+const allTemplates = ref([])
+
+// 加载模版列表
+const loadTemplates = () => {
+  allTemplates.value = getAllTemplates()
+}
+
+// 初始化时加载模版
+loadTemplates()
 
 // 格式化日期时间
 const formatDateTime = (date) => {
@@ -466,5 +526,44 @@ const handleReviewAll = async () => {
       return result.data.message  // 使用 message 字段作为 API key
     }
     return ''
+  }
+
+// ========== 模版功能相关 ==========
+
+// 创建新模版
+function handleCreateTemplate() {
+  store.clearCurrentEditingTemplate()
+  editorOpen.value = true
+}
+
+// 编辑模版
+function handleEditTemplate(id) {
+  const template = getTemplateById(id)
+  if (template) {
+    store.setCurrentEditingTemplate(template)
+    editorOpen.value = true
+  }
+}
+
+// 保存模版
+function handleSaveTemplate(templateData) {
+  saveTemplate(templateData)
+  editorOpen.value = false
+  store.clearCurrentEditingTemplate()
+  loadTemplates()
+}
+
+// 应用模版
+function handleApplyTemplate(id) {
+  const template = getTemplateById(id)
+  if (template) {
+    store.applyTemplate(template)
+    store.closeTemplateDrawer()
+  }
+}
+
+// 撤销模版应用
+function handleUndoTemplate() {
+  store.undoTemplateApplication()
 }
 </script>
