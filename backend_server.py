@@ -184,14 +184,16 @@ def generate_conclusion():
         reason = parsed.get('reason', '')
         evidence = parsed.get('evidence', '')
 
-        # 根据结论内容判断状态
-        status = '待确认'  # 默认状态
-        if conclusion:
-            # 检查是否包含"通过"、"符合"等关键词
-            if any(keyword in conclusion for keyword in ['通过', '符合', '合格', '满足']):
-                status = '通过'
-            elif any(keyword in conclusion for keyword in ['不通过', '不符合', '不合格', '未通过']):
-                status = '不通过'
+        # 调试：打印解析结果
+        print(f"\n=== parse_conclusion 结果 ===")
+        print(f"conclusion: '{conclusion}'")
+        print(f"reason: '{reason}'")
+        print(f"evidence: '{evidence}'")
+
+        # 直接使用 hiagent 输出的 conclusion 作为 status
+        status = conclusion if conclusion else '待确认'
+
+        print(f"最终 status: '{status}'")
 
         # 使用 Python 的 datetime 获取当前时间
         from datetime import datetime
