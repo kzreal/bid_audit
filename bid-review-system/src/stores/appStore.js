@@ -44,7 +44,7 @@ export const useAppStore = defineStore('app', {
 
     // 是否可以开始分析
     canAnalyze: (state) => {
-      return state.requirementText.trim() && (state.contextText.trim() || state.bidSlices.length > 0)
+      return state.requirementText.trim()
     },
 
     // 是否可以开始审核
@@ -158,9 +158,9 @@ export const useAppStore = defineStore('app', {
 
         // 处理后端返回的任务数据，确保有 title 和 description 字段
         const tasksWithTime = response.data.map(task => ({
-          id: task.id || Date.now() + Math.random(),  // 确保有 id
-          title: task.title || task.content || task.description || `任务 ${task.id}`,
-          description: task.description || task.content || '',
+          id: task.id || Date.now() + Math.random(),
+          title: task.task || task.content || `任务 ${task.id}`,
+          description: '',  // 留空，避免重复显示
           subtasks: task.subtasks || [],
           createdAt: new Date(),
           updatedAt: new Date()
