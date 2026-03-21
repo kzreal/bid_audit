@@ -79,11 +79,11 @@
 
     <!-- 中间：任务列表 -->
     <div class="w-[30%] bg-gray-50 border-r border-gray-100 flex flex-col">
-      <header class="bg-white border-b border-gray-100 p-5 shadow-sm sticky top-0 z-10">
+      <header class="bg-white border-b border-gray-100 p-6 shadow-sm sticky top-0 z-10 min-h-[98px]">
         <div class="flex items-center justify-between gap-4">
           <div class="flex-1 min-w-0">
-            <h2 class="text-lg font-semibold text-gray-800">任务列表</h2>
-            <p class="text-gray-500 text-sm mt-1">
+            <h2 class="text-base font-semibold text-gray-800">任务列表</h2>
+            <p class="text-gray-500 text-sm mt-0.5">
               <span class="font-medium text-gray-700">{{ tasks.length }}</span> 个任务
               <span v-if="store.taskStats.reviewed" class="ml-2 text-gray-400">
                 · 已审核 <span class="text-green-600 font-medium">{{ store.taskStats.reviewed }}</span>
@@ -139,18 +139,21 @@
 
     <!-- 右侧：审核详情 -->
     <div class="flex-1 bg-white flex flex-col overflow-hidden">
-      <header v-if="selectedTask" class="bg-white border-b border-gray-100 p-5 flex-shrink-0 flex justify-between items-start gap-4 shadow-sm sticky top-0 z-10">
-        <div class="flex-1 min-w-0">
+      <header class="bg-white border-b border-gray-100 p-6 flex-shrink-0 flex justify-between items-center gap-4 shadow-sm sticky top-0 z-10 min-h-[98px]">
+        <div v-if="selectedTask" class="flex-1 min-w-0">
           <h2 class="text-base font-semibold text-gray-800 leading-relaxed">{{ selectedTask.title }}</h2>
           <p v-if="selectedTask.description" class="text-gray-500 text-sm mt-1.5 leading-relaxed">{{ selectedTask.description }}</p>
         </div>
-        <div v-if="selectedTask.review && selectedTask.review.createdAt" class="flex-shrink-0 text-right">
+        <div v-if="selectedTask && selectedTask.review && selectedTask.review.createdAt" class="flex-shrink-0 text-right">
           <p class="text-xs text-gray-400 font-medium">{{ formatDateTime(selectedTask.review.createdAt) }}</p>
+        </div>
+        <div v-else class="flex-1">
+          <h2 class="text-base font-semibold text-gray-400">审核详情</h2>
         </div>
       </header>
 
       <!-- 空状态 -->
-      <div v-else class="flex-1 flex items-center justify-center p-8">
+      <div v-if="!selectedTask" class="flex-1 flex items-center justify-center p-8">
         <div class="text-center">
           <div class="w-20 h-20 mx-auto mb-4 rounded-2xl bg-gray-50 flex items-center justify-center">
             <svg class="w-10 h-10 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -172,12 +175,14 @@
 
     <!-- 模版库抽屉 -->
     <template-drawer
+      key="template-drawer"
       :open="store.templateDrawerOpen"
       :templates="allTemplates"
       @close="store.closeTemplateDrawer"
       @create-template="handleCreateTemplate"
       @apply="handleApplyTemplate"
       @edit="handleEditTemplate"
+      @delete="handleDeleteTemplate"
     />
 
     <!-- 模版编辑器 -->
@@ -314,10 +319,10 @@
 </style>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, reactive, onMounted } from 'vue'
 import { useAppStore } from '../stores/appStore'
 import { generateConclusion } from '../services/hiagentService'
-import { getAllTemplates, saveTemplate, getTemplateById } from '../services/templateService'
+import { getAllTemplates, saveTemplate, getTemplateById, deleteTemplate } from '../services/templateService'
 import BidRequirementInput from './BidRequirementInput.vue'
 import BidFileInput from './BidFileInput.vue'
 import TaskList from './TaskListOptimized.vue'
@@ -346,11 +351,13 @@ const tasks = computed(() => store.tasks)
 const selectedTask = computed(() => store.selectedTask)
 
 // 所有模版
-const allTemplates = ref([])
+const allTemplates = reactive([])
 
 // 加载模版列表
 const loadTemplates = () => {
-  allTemplates.value = getAllTemplates()
+  // 使用 splice 和 push 确保响应式更新
+  allTemplates.splice(0, allTemplates.length)
+  allTemplates.push(...getAllTemplates())
 }
 
 // 初始化时加载模版
@@ -559,6 +566,14 @@ function handleApplyTemplate(id) {
   if (template) {
     store.applyTemplate(template)
     store.closeTemplateDrawer()
+  }
+}
+
+// 删除模版
+function handleDeleteTemplate(id) {
+  if (confirm('确定要删除这个模版吗？')) {
+    deleteTemplate(id)
+    loadTemplates()
   }
 }
 

@@ -124,7 +124,7 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue'
-import { searchTemplates, getAllTags, deleteTemplate } from '../services/templateService'
+import { getAllTags } from '../services/templateService'
 import TemplateCard from './TemplateCard.vue'
 
 const props = defineProps({
@@ -138,7 +138,7 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['close', 'create-template', 'apply', 'edit'])
+const emit = defineEmits(['close', 'create-template', 'apply', 'edit', 'delete'])
 
 // 搜索查询
 const searchQuery = ref('')
@@ -157,7 +157,21 @@ const allTags = computed(() => {
 
 // 过滤后的模版
 const filteredTemplates = computed(() => {
-  return searchTemplates(searchQuery.value, selectedTags.value)
+  // 直接使用 props.templates 进行筛选
+  const templatesToFilter = props.templates
+
+  return templatesToFilter.filter(template => {
+    // 关键词搜索
+    const matchesQuery = !searchQuery.value ||
+      template.name.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
+      (template.description && template.description.toLowerCase().includes(searchQuery.value.toLowerCase()))
+
+    // 标签筛选
+    const matchesTags = selectedTags.value.length === 0 ||
+      selectedTags.value.every(tag => template.tags && template.tags.includes(tag))
+
+    return matchesQuery && matchesTags
+  })
 })
 
 // 切换标签
@@ -177,9 +191,7 @@ function clearTags() {
 
 // 处理删除
 function handleDelete(id) {
-  if (confirm('确定要删除这个模版吗？')) {
-    deleteTemplate(id)
-  }
+  emit('delete', id)
 }
 
 // 监听 open 变化，重置状态
@@ -189,6 +201,10 @@ watch(() => props.open, (isOpen) => {
     selectedTags.value = []
   }
 })
+
+// 监听 templates 变化，更新筛选（确保创建/删除后立即显示变化）
+// 已移除 watch，filteredTemplates 直接依赖 props.templates 会自动响应变化
+
 </script>
 
 <style scoped>

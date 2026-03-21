@@ -119,10 +119,11 @@ export function deleteTemplate(id) {
 /**
  * 搜索模版
  */
-export function searchTemplates(query = '', tags = []) {
-  const templates = getAllTemplates()
+export function searchTemplates(query = '', tags = [], templates = null) {
+  // 如果没有提供 templates 参数，从 localStorage 读取
+  const templatesToSearch = templates || getAllTemplates()
 
-  return templates.filter(template => {
+  return templatesToSearch.filter(template => {
     // 关键词搜索
     const matchesQuery = !query ||
       template.name.toLowerCase().includes(query.toLowerCase()) ||
