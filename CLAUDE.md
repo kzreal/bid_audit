@@ -9,68 +9,137 @@
 ### Users
 企业内部审核团队，包括采购人员、法务人员等专业审核人员。他们在日常工作中使用该系统进行投标文件的智能审核，需要高效、专业的界面来提高工作效率。
 
+标书员，需要在日常工作中进行投标文件审核和任务管理的企业内部人员。他们需要在不同的招标项目中快速应用标准化的审核流程，同时也要能根据具体项目需求进行灵活调整。
+
 ### Brand Personality
-专业 + 高效。传达可靠、精准、快速的审核体验，让用户对系统有信心。
+专业 + 高效 + 极简。传达可靠、精准、快速的审核体验，让用户对系统有信心，同时享受现代极简设计带来的清晰体验。
 
 ### Aesthetic Direction
-简约现代风格。基于现有的蓝色系主色调进行优化升级，使用大量留白、清晰层次、柔和阴影和微妙的过渡动画。参考现代企业级 SaaS 产品如 Linear、Notion 的设计语言。
+**Vercel 风格 + Next.js 文档风格**。以极简黑白配色为主，仅在头部保留蓝色渐变作为品牌识别。
+
+参考元素：
+- **Vercel 官网**：极简黑白、高对比度、1px 细边框、极小圆角 (2px)
+- **Next.js 文档站**：清晰的排版、柔和的背景分隔、精致的间距系统
+
+**核心设计语言**：
+- 极简黑白配色（#000000, #ffffff, #fafafa, #eaeaea）
+- 1px 细边框（无 2px 粗边框）
+- 极小圆角（rounded-sm 或完全不圆角）
+- 几乎无阴影
+- 高对比度文字
+- 精细的间距系统
+- 柔和的背景分隔（使用极浅灰色区分区域）
 
 ### Design Principles
 
-1. **清晰优先** (Clarity First)
-   - 信息层级分明，重要内容突出显示
-   - 使用留白区分内容区块
-   - 状态通过颜色明确传达（绿色-通过、红色-不通过、黄色-待确认）
+1. **极简至上** (Minimalism First)
+   - 使用纯黑、纯白、极浅灰配色
+   - 1px 细边框，极小圆角 (2px)
+   - 移除不必要的阴影和装饰
+   - 让内容本身成为视觉焦点
 
-2. **高效交互** (Efficient Interaction)
-   - 减少用户操作步骤，提供快捷操作
-   - 加载状态清晰可见，避免用户等待焦虑
-   - 错误提示具体且可操作
+2. **品牌识别** (Brand Recognition)
+   - 头部保留蓝色渐变作为品牌标识
+   - 其他区域使用极简黑白风格
+   - 品牌蓝 (#0070f3) 仅用于交互状态（悬停、选中）
 
-3. **专业可信** (Professional Trust)
-   - 色彩使用克制，以蓝色系为主
-   - 字体清晰易读，使用 Noto Sans SC 中文无衬线字体
-   - 界面元素一致，遵循统一的设计规范
+3. **清晰层级** (Clear Hierarchy)
+   - 使用 1px 边框 + 背景色区分区域
+   - 柔和的背景分隔（#fafafa, #f4f4f5）
+   - 高对比度文字，确保可读性
+   - 精细的间距系统构建视觉节奏
 
-4. **渐进披露** (Progressive Disclosure)
-   - 关键信息优先展示，详细信息按需展开
-   - 长文本使用折叠或截断处理
-   - 避免信息过载
+4. **状态传达** (Status Communication)
+   - 使用 Vercel 品牌蓝 (#0070f3) 和黑色表达不同状态
+   - 通过：品牌蓝填充 + 白色图标/文字
+   - 不通过：黑色填充 + 白色图标/文字
+   - 待确认：浅灰背景 + 黑色文字
 
-5. **反馈及时** (Immediate Feedback)
-   - 所有交互都有视觉反馈（悬停、点击、加载）
-   - 操作结果及时通知用户
-   - 动画过渡流畅自然（200-300ms）
+5. **交互反馈** (Immediate Feedback)
+   - 交互元素（按钮、输入框）悬停时显示品牌蓝边框
+   - 选中状态使用品牌蓝高亮
+   - 过渡动画流畅（200ms）
+   - 极简的加载动画
 
 ### Design Tokens
 
-#### Colors
-- Primary: Blue-600 (#2563eb) → Blue-700 (#1d4ed8)
-- Background: Gray-50 (#f9fafb)
-- Surface: White (#ffffff)
-- Border: Gray-200 (#e5e7eb)
-- Success: Green-600 (#059669)
-- Error: Red-600 (#dc2626)
-- Warning: Yellow-600 (#d97706)
+#### 主色调
+```css
+--color-black: #000000;
+--color-white: #ffffff;
+--color-gray-50: #fafafa;
+--color-gray-100: #f4f4f5;
+--color-gray-200: #eaeaea;
+--color-gray-300: #d4d4d8;
+--color-gray-400: #a1a1aa;
+--color-gray-500: #71717a;
+```
+
+#### 品牌色
+```css
+--color-vercel-blue: #0070f3;
+--color-vercel-blue-hover: #0051b3;
+--color-vercel-blue-light: rgba(0, 112, 243, 0.1);
+```
+
+#### 状态色（Vercel 风格）
+```css
+--status-pass-bg: #0070f3;        /* 品牌蓝填充 */
+--status-pass-text: #ffffff;
+--status-fail-bg: #000000;        /* 黑色填充 */
+--status-fail-text: #ffffff;
+--status-pending-bg: #f4f4f5;    /* 浅灰背景 */
+--status-pending-text: #000000;
+```
 
 #### Typography
-- Font Family: 'Noto Sans SC', 'Inter', system-ui, sans-serif
-- Line Height: 1.5 (leading-relaxed)
-- Font Sizes: text-xs (12px), text-sm (14px), text-base (16px), text-lg (18px), text-xl (20px)
+```css
+font-family: 'Noto Sans SC', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+--text-xs: 0.75rem;      /* 12px */
+--text-sm: 0.875rem;     /* 14px */
+--text-base: 1rem;        /* 16px */
+--text-lg: 1.125rem;      /* 18px */
+--text-xl: 1.25rem;       /* 20px */
+--text-2xl: 1.5rem;      /* 24px */
+```
 
 #### Spacing
-- Gap: 3 (0.75rem), 4 (1rem), 6 (1.5rem)
-- Padding: 3 (0.75rem), 4 (1rem), 6 (1.5rem)
-- Border Radius: rounded-md (0.375rem), rounded-lg (0.5rem), rounded-xl (0.75rem)
+```css
+--spacing-1: 0.25rem;   /* 4px */
+--spacing-2: 0.5rem;    /* 8px */
+--spacing-3: 0.75rem;   /* 12px */
+--spacing-4: 1rem;      /* 16px */
+--spacing-5: 1.25rem;   /* 20px */
+--spacing-6: 1.5rem;    /* 24px */
+--spacing-8: 2rem;      /* 32px */
+```
+
+#### Border Radius
+```css
+--radius-sm: 0.125rem;   /* 2px - Vercel 风格 */
+--radius-md: 0.25rem;    /* 4px */
+--radius-lg: 0.5rem;     /* 8px */
+```
+
+#### Borders
+```css
+--border-thin: 1px solid #eaeaea;
+--border-brand: 1px solid #0070f3;
+--border-black: 1px solid #000000;
+```
 
 #### Shadows
-- Default: shadow-sm
-- Hover: shadow-md
-- Elevated: shadow-lg
+```css
+--shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+```
+Vercel 风格通常不使用阴影或仅使用极浅阴影。
 
 #### Transitions
-- Duration: 200ms for micro-interactions, 300ms for layout changes
-- Easing: ease-in-out
+```css
+--transition-fast: 150ms ease-out;
+--transition-base: 200ms ease-in-out;
+--transition-slow: 300ms ease-in-out;
+```
 
 ### Layout Structure
 
@@ -81,12 +150,21 @@
 
 响应式考虑：小屏幕时切换为单栏堆叠布局。
 
+**头部区域**：
+- 左侧头部：蓝色渐变背景（保留品牌识别）
+- 中间/右侧头部：白色背景 + 1px 底边框
+
+**内容区域**：
+- 白色卡片 + 1px 边框
+- 使用浅灰背景分隔区域
+
 ### Accessibility
 
-- 所有交互元素都有明确的焦点状态
+- 所有交互元素都有明确的焦点状态（品牌蓝边框）
 - 颜色对比度符合 WCAG AA 标准
 - 支持键盘导航
 - 为重要状态提供视觉和非视觉提示（颜色 + 图标 + 文字）
+- 最小点击区域：44×44px
 
 ---
 

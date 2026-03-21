@@ -1,80 +1,80 @@
 <template>
   <teleport to="body">
-    <!-- 遮罩层 -->
+    <!-- 遮罩层 - Vercel 风格 -->
     <transition name="fade">
       <div
         v-if="open"
-        class="fixed inset-0 bg-black/30 backdrop-blur-sm z-40"
+        class="fixed inset-0 bg-black/30 z-40"
         @click="$emit('close')"
       ></div>
     </transition>
 
-    <!-- 抽屉 -->
+    <!-- 抽屉 - Vercel 风格 -->
     <transition name="slide">
       <div
         v-if="open"
-        class="fixed inset-y-0 right-0 w-[480px] bg-white shadow-2xl z-50 flex flex-col"
+        class="fixed inset-y-0 right-0 w-[480px] bg-white border-l border-gray-200 z-50 flex flex-col"
       >
         <!-- 头部 -->
-        <header class="border-b border-gray-100 p-5 flex-shrink-0">
-          <div class="flex items-center justify-between mb-4">
-            <div class="flex items-center gap-3">
-              <div class="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center">
-                <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+        <header class="border-b border-gray-200 px-5 py-4 flex-shrink-0">
+          <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center gap-2.5">
+              <div class="w-9 h-9 rounded-vercel-sm bg-gray-100 flex items-center justify-center">
+                <svg class="w-5 h-5 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                 </svg>
               </div>
               <div>
-                <h2 class="text-lg font-semibold text-gray-800">模版库</h2>
-                <p class="text-xs text-gray-400 mt-0.5">快速应用或管理审核模版</p>
+                <h2 class="text-base font-semibold text-black">模版库</h2>
+                <p class="text-xs text-gray-500 mt-0.5">快速应用或管理审核模版</p>
               </div>
             </div>
             <button
               @click="$emit('close')"
-              class="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+              class="p-2 text-gray-500 hover:text-black hover:bg-gray-100 rounded-vercel-sm transition-colors"
             >
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M6 18L18 6M6 6l12 12"></path>
               </svg>
             </button>
           </div>
 
-          <!-- 搜索框 -->
+          <!-- 搜索框 - Vercel 风格 -->
           <div class="relative">
             <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
             </svg>
             <input
               v-model="searchQuery"
               type="text"
               placeholder="搜索模版..."
-              class="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+              class="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-300 rounded-vercel-sm text-sm text-black placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-vercel-blue-light focus:border-vercel-blue transition-all"
             >
           </div>
         </header>
 
-        <!-- 标签筛选 -->
-        <div class="px-5 py-4 border-b border-gray-100 flex-shrink-0">
-          <div class="flex items-center gap-2 mb-3">
-            <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path>
+        <!-- 标签筛选 - Vercel 风格 -->
+        <div class="px-5 py-3.5 border-b border-gray-200 flex-shrink-0">
+          <div class="flex items-center gap-2 mb-2">
+            <svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path>
             </svg>
-            <span class="text-xs font-medium text-gray-600">标签筛选</span>
+            <span class="text-xs font-medium text-black">标签筛选</span>
           </div>
           <div class="flex flex-wrap gap-2">
             <button
               v-for="tag in allTags"
               :key="tag"
               @click="toggleTag(tag)"
-              :class="selectedTags.includes(tag) ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
-              class="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
+              :class="selectedTags.includes(tag) ? 'bg-vercel-blue text-white' : 'bg-gray-100 text-black hover:bg-gray-200'"
+              class="px-2.5 py-1 rounded-vercel-sm text-xs font-medium transition-colors"
             >
               {{ tag }}
             </button>
             <button
               v-if="selectedTags.length > 0"
               @click="clearTags"
-              class="px-3 py-1.5 rounded-lg text-xs font-medium text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+              class="px-2.5 py-1 rounded-vercel-sm text-xs font-medium text-gray-500 hover:text-black hover:bg-gray-100 transition-colors"
             >
               清除
             </button>
@@ -84,15 +84,13 @@
         <!-- 模版列表 -->
         <div class="flex-1 overflow-y-auto p-5">
           <transition name="fade" mode="out-in">
-            <div v-if="filteredTemplates.length === 0" class="text-center py-12">
-              <div class="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gray-50 flex items-center justify-center">
-                <svg class="w-8 h-8 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                </svg>
-              </div>
-              <p class="text-sm text-gray-400">没有找到匹配的模版</p>
+            <div v-if="filteredTemplates.length === 0" class="text-center py-10">
+              <svg class="w-12 h-12 mx-auto mb-3 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+              </svg>
+              <p class="text-sm text-gray-500">没有找到匹配的模版</p>
             </div>
-            <div v-else class="grid grid-cols-1 gap-4">
+            <div v-else class="space-y-2.5">
               <template-card
                 v-for="template in filteredTemplates"
                 :key="template.id"
@@ -105,14 +103,14 @@
           </transition>
         </div>
 
-        <!-- 底部按钮 -->
-        <footer class="p-5 border-t border-gray-100 flex-shrink-0">
+        <!-- 底部按钮 - Vercel 风格 -->
+        <footer class="px-5 py-4 border-t border-gray-200 flex-shrink-0">
           <button
             @click="$emit('create-template')"
-            class="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white py-3 px-6 rounded-xl font-semibold shadow-lg shadow-blue-500/25 hover:shadow-xl hover:shadow-blue-500/30 transition-all duration-300 hover:-translate-y-0.5 active:translate-y-0 flex items-center justify-center gap-2"
+            class="w-full bg-vercel-blue text-white py-2.5 px-6 rounded-vercel-sm text-sm font-semibold transition-all duration-200 hover:bg-vercel-blue-hover focus:outline-none focus:ring-2 focus:ring-vercel-blue-light flex items-center justify-center gap-2"
           >
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 4v16m8-8H4"></path>
             </svg>
             新建模版
           </button>
@@ -204,14 +202,13 @@ watch(() => props.open, (isOpen) => {
 
 // 监听 templates 变化，更新筛选（确保创建/删除后立即显示变化）
 // 已移除 watch，filteredTemplates 直接依赖 props.templates 会自动响应变化
-
 </script>
 
 <style scoped>
 /* 淡入淡出 */
 .fade-enter-active,
 .fade-leave-active {
-  transition: opacity 0.2s ease;
+  transition: opacity 200ms ease-out;
 }
 
 .fade-enter-from,
@@ -222,7 +219,7 @@ watch(() => props.open, (isOpen) => {
 /* 侧滑 */
 .slide-enter-active,
 .slide-leave-active {
-  transition: transform 0.3s ease-in-out;
+  transition: transform 300ms ease-out;
 }
 
 .slide-enter-from,
@@ -240,11 +237,11 @@ watch(() => props.open, (isOpen) => {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #d1d5db;
+  background: #d4d4d8;
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #9ca3af;
+  background: #a1a1aa;
 }
 </style>

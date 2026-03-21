@@ -1,42 +1,42 @@
 <template>
-  <!-- 审核中状态 -->
+  <!-- 审核中状态 - Vercel 风格 -->
   <div v-if="reviewing" class="flex flex-col items-center justify-center h-full p-8">
-    <div class="loading-ring mb-6"></div>
-    <p class="text-gray-600 font-medium">正在审核任务...</p>
+    <div class="loading-ring mb-5"></div>
+    <p class="text-black text-sm font-medium">正在审核任务...</p>
     <p class="text-xs text-gray-400 mt-2">这可能需要几秒钟</p>
   </div>
 
   <!-- 审核完成状态 -->
   <div v-else-if="selectedTask.review" class="space-y-3">
-    <!-- 审核结论卡片 -->
-    <div class="bg-white border border-gray-100 rounded-xl p-4 shadow-sm">
+    <!-- 审核结论卡片 - Vercel 风格 -->
+    <div class="card-vercel p-4">
       <div class="flex flex-col items-center justify-center gap-3">
         <div class="w-12 h-12 rounded-full flex items-center justify-center" :class="getConclusionIconBg(selectedTask.review.conclusion)">
-          <svg v-if="selectedTask.review.conclusion === '通过'" class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg v-if="selectedTask.review.conclusion === '通过'" class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
           </svg>
-          <svg v-else-if="selectedTask.review.conclusion === '不通过'" class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+          <svg v-else-if="selectedTask.review.conclusion === '不通过'" class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
           </svg>
-          <svg v-else class="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg v-else class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
           </svg>
         </div>
-        <span :class="['text-xl font-bold', getConclusionTextClass(selectedTask.review.conclusion)]">
+        <span :class="['text-lg font-bold', getConclusionTextClass(selectedTask.review.conclusion)]">
           {{ selectedTask.review.conclusion }}
         </span>
         <button
           @click="reviewTask"
           :disabled="store.loading"
-          class="mt-1 bg-white border border-blue-600 text-blue-600 px-3 py-1.5 rounded-lg text-sm font-semibold hover:bg-blue-50 transition-all duration-300 disabled:border-gray-200 disabled:text-gray-400 disabled:bg-gray-50 disabled:cursor-not-allowed flex items-center gap-2"
+          class="mt-2 bg-white text-black border border-gray-300 px-3 py-1.5 rounded-vercel-sm text-sm font-semibold transition-all duration-200 hover:bg-gray-50 hover:border-black focus:outline-none focus:ring-2 focus:ring-vercel-blue-light disabled:bg-gray-200 disabled:text-gray-500 disabled:cursor-not-allowed flex items-center gap-2"
         >
           <span v-if="store.loading" class="inline-flex items-center">
             <div class="loader-mini mr-2"></div>
             审核中...
           </span>
           <span v-else class="flex items-center gap-2">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
             </svg>
             重新审核
           </span>
@@ -44,32 +44,29 @@
       </div>
     </div>
 
-    <!-- 审核原因 -->
-    <div v-if="selectedTask.review.reason" class="bg-white border border-gray-100 rounded-2xl overflow-hidden shadow-sm">
-      <div class="px-6 py-4 border-b border-gray-100 bg-gray-50/50">
-        <div class="flex items-center gap-2 text-sm font-semibold text-gray-700">
-          <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-          </svg>
+    <!-- 审核原因 - Vercel 风格 -->
+    <div v-if="selectedTask.review.reason" class="card-vercel overflow-hidden">
+      <div class="px-4 py-3 border-b border-gray-200 bg-gray-50">
+        <div class="flex items-center gap-2 text-xs font-semibold text-black">
           审核原因
         </div>
       </div>
-      <div class="p-6">
-        <p class="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{{ selectedTask.review.reason }}</p>
+      <div class="p-4">
+        <p class="text-sm text-black leading-relaxed whitespace-pre-wrap">{{ selectedTask.review.reason }}</p>
       </div>
     </div>
 
-    <!-- 投标来源 - 可折叠 -->
-    <div v-if="selectedTask.review.bidSource" class="bg-white border border-gray-100 rounded-2xl overflow-hidden shadow-sm">
+    <!-- 投标来源 - 可折叠 - Vercel 风格 -->
+    <div v-if="selectedTask.review.bidSource" class="card-vercel overflow-hidden">
       <button
         @click="bidSourceExpanded = !bidSourceExpanded"
-        class="w-full flex items-center justify-between px-6 py-4 text-left hover:bg-gray-50/50 transition-colors"
+        class="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-gray-50 transition-colors"
       >
         <div class="flex items-center gap-2">
-          <svg class="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+          <svg class="w-4 h-4 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
           </svg>
-          <span class="text-sm font-semibold text-gray-700">投标来源</span>
+          <span class="text-sm font-semibold text-black">投标来源</span>
           <span class="text-xs text-gray-400">({{ parseLineNumbersAndGetContent(selectedTask.review.bidSource).length }})</span>
         </div>
         <svg
@@ -79,38 +76,38 @@
           stroke="currentColor"
           viewBox="0 0 24 24"
         >
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 9l-7 7-7-7"></path>
         </svg>
       </button>
-      <div v-show="bidSourceExpanded" class="border-t border-gray-100">
-        <div v-if="parseLineNumbersAndGetContent(selectedTask.review.bidSource).length > 0" class="p-4 space-y-2">
+      <div v-show="bidSourceExpanded" class="border-t border-gray-200">
+        <div v-if="parseLineNumbersAndGetContent(selectedTask.review.bidSource).length > 0" class="p-3 space-y-2">
           <div
             v-for="(item, idx) in parseLineNumbersAndGetContent(selectedTask.review.bidSource)"
             :key="idx"
-            class="bg-green-50 border border-green-100 rounded-xl p-3"
+            class="bg-gray-50 border border-gray-200 rounded-vercel-sm p-3"
           >
             <div class="max-h-32 overflow-y-auto">
-              <p class="text-xs text-gray-700 font-mono leading-relaxed whitespace-pre">{{ item.originalLine }}</p>
+              <p class="text-xs text-black font-mono leading-relaxed whitespace-pre">{{ item.originalLine }}</p>
             </div>
           </div>
         </div>
         <div v-else class="p-4">
-          <p class="text-sm text-gray-600">{{ selectedTask.review.bidSource }}</p>
+          <p class="text-sm text-black">{{ selectedTask.review.bidSource }}</p>
         </div>
       </div>
     </div>
 
-    <!-- 多切片审核结果 - 可折叠 -->
-    <div v-if="selectedTask.review.slices_reviews && selectedTask.review.slices_reviews.length > 0" class="bg-white border border-gray-100 rounded-2xl overflow-hidden shadow-sm">
+    <!-- 多切片审核结果 - 可折叠 - Vercel 风格 -->
+    <div v-if="selectedTask.review.slices_reviews && selectedTask.review.slices_reviews.length > 0" class="card-vercel overflow-hidden">
       <button
         @click="slicesExpanded = !slicesExpanded"
-        class="w-full flex items-center justify-between px-6 py-4 text-left hover:bg-gray-50/50 transition-colors"
+        class="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-gray-50 transition-colors"
       >
         <div class="flex items-center gap-2">
-          <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
+          <svg class="w-4 h-4 text-vercel-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
           </svg>
-          <span class="text-sm font-semibold text-gray-700">切片审核结果</span>
+          <span class="text-sm font-semibold text-black">切片审核结果</span>
           <span class="text-xs text-gray-400">({{ selectedTask.review.slices_reviews.length }})</span>
         </div>
         <svg
@@ -120,25 +117,25 @@
           stroke="currentColor"
           viewBox="0 0 24 24"
         >
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 9l-7 7-7-7"></path>
         </svg>
       </button>
-      <div v-show="slicesExpanded" class="border-t border-gray-100">
-        <div class="p-4 space-y-2">
+      <div v-show="slicesExpanded" class="border-t border-gray-200">
+        <div class="p-3 space-y-2">
           <div
             v-for="(sliceReview, index) in selectedTask.review.slices_reviews"
             :key="index"
-            class="border border-gray-100 rounded-xl p-3 hover:bg-gray-50/50 transition-colors"
+            class="border border-gray-200 rounded-vercel-sm p-3 hover:bg-gray-50 transition-colors"
           >
             <div class="flex items-center gap-2 mb-2">
-              <span class="px-2 py-1 bg-gray-100 text-gray-600 rounded-md text-xs font-medium">切片 {{ index + 1 }}</span>
+              <span class="px-2 py-0.5 bg-gray-100 text-black rounded-vercel-sm text-xs font-medium">切片 {{ index + 1 }}</span>
             </div>
             <div v-if="sliceReview.suggestion" class="mb-2">
-              <p class="text-sm text-gray-700 leading-relaxed">{{ sliceReview.suggestion }}</p>
+              <p class="text-sm text-black leading-relaxed">{{ sliceReview.suggestion }}</p>
             </div>
             <div v-if="sliceReview.evidence" class="flex items-start gap-2 text-xs text-gray-500">
               <svg class="w-3.5 h-3.5 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
               </svg>
               <span>证据: {{ sliceReview.evidence }}</span>
             </div>
@@ -148,14 +145,12 @@
     </div>
   </div>
 
-  <!-- 未审核状态 -->
+  <!-- 未审核状态 - Vercel 风格 -->
   <div v-else class="flex flex-col items-center justify-center h-full p-8">
-    <div class="w-20 h-20 mb-4 rounded-2xl bg-gray-50 flex items-center justify-center">
-      <svg class="w-10 h-10 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
-      </svg>
-    </div>
-    <p class="text-sm font-medium text-gray-600">此任务尚未审核</p>
+    <svg class="w-12 h-12 mb-5 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332 4.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332 4.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332 4.477-4.5 1.253"></path>
+    </svg>
+    <p class="text-sm font-medium text-black">此任务尚未审核</p>
     <p class="text-xs text-gray-400 mt-2">请点击任务列表中的任务开始审核</p>
   </div>
 </template>
@@ -197,14 +192,14 @@ const formatDateTime = (date) => {
 // 获取结论图标背景色
 const getConclusionIconBg = (conclusion) => {
   const bgMap = {
-    '通过': 'bg-green-100',
-    '不通过': 'bg-red-100',
-    '待确认': 'bg-yellow-100'
+    '通过': 'bg-green-500',
+    '不通过': 'bg-red-500',
+    '待确认': 'bg-yellow-500'
   }
-  return bgMap[conclusion] || 'bg-gray-100'
+  return bgMap[conclusion] || 'bg-gray-500'
 }
 
-// 获取结论文本颜色
+// 获取结论文字颜色
 const getConclusionTextClass = (conclusion) => {
   const colorMap = {
     '通过': 'text-green-600',
@@ -293,23 +288,30 @@ const parseLineNumbersAndGetContent = (bidSource) => {
 </script>
 
 <style scoped>
-/* 旋转环形加载动画 */
+/* 极简卡片 - Vercel 风格 */
+.card-vercel {
+  background: white;
+  border: 1px solid #eaeaea;
+  border-radius: 2px;
+}
+
+/* 旋转环形加载动画 - Vercel 风格 */
 .loading-ring {
-  border: 3px solid #e5e7eb;
-  border-top: 3px solid #3b82f6;
+  border: 2px solid #eaeaea;
+  border-top: 2px solid #0070f3;
   border-radius: 50%;
-  width: 48px;
-  height: 48px;
-  animation: spin 1s linear infinite;
+  width: 40px;
+  height: 40px;
+  animation: spin 0.8s linear infinite;
 }
 
 .loader-mini {
-  border: 2px solid #e5e7eb;
-  border-top: 2px solid #3b82f6;
+  border: 1.5px solid #eaeaea;
+  border-top: 1.5px solid #0070f3;
   border-radius: 50%;
-  width: 16px;
-  height: 16px;
-  animation: spin 1s linear infinite;
+  width: 14px;
+  height: 14px;
+  animation: spin 0.6s linear infinite;
 }
 
 @keyframes spin {
