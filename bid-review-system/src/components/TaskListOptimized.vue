@@ -18,6 +18,12 @@
           :class="['task-card', { active: selectedTaskId === task.id }]"
           @click="selectTask(task)"
         >
+          <!-- 状态垂直色条 -->
+          <div
+            class="status-bar"
+            :class="getStatusBarClass(task)"
+          ></div>
+
           <div class="flex items-start justify-between gap-3 mb-2.5">
             <div class="flex-1 min-w-0">
               <div class="flex items-center gap-2 mb-1">
@@ -86,6 +92,18 @@ const getStatusTagClass = (status) => {
   return statusMap[status] || 'pending'
 }
 
+const getStatusBarClass = (task) => {
+  if (!task.review) {
+    return 'unreviewed'
+  }
+  const statusMap = {
+    '通过': 'pass',
+    '不通过': 'fail',
+    '待确认': 'pending'
+  }
+  return statusMap[task.review.conclusion] || 'unreviewed'
+}
+
 const formatDate = (date) => {
   if (!date) return ''
   const d = new Date(date)
@@ -108,6 +126,8 @@ const selectTask = (task) => {
   cursor: pointer;
   position: relative;
   overflow: hidden;
+  /* 左侧预留空间给状态色条 */
+  padding-left: 1rem;
 }
 
 .task-card:hover {
@@ -117,6 +137,32 @@ const selectTask = (task) => {
 .task-card.active {
   border-color: #0070f3;
   background: rgba(0, 112, 243, 0.05);
+}
+
+/* 状态垂直色条 */
+.status-bar {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  transition: all 200ms ease-out;
+}
+
+.status-bar.pass {
+  background: #22c55e; /* 绿色 - 通过 */
+}
+
+.status-bar.fail {
+  background: #ef4444; /* 红色 - 不通过 */
+}
+
+.status-bar.pending {
+  background: #f59e0b; /* 黄色 - 待确认 */
+}
+
+.status-bar.unreviewed {
+  background: #eaeaea; /* 极浅灰 - 待审核 */
 }
 
 /* 状态标签 */
@@ -137,6 +183,22 @@ const selectTask = (task) => {
 
 .status-dot.pending {
   background: #f59e0b;
+}
+
+/* 状态标签 - 与垂直色条颜色统一 */
+.review-badge.pass {
+  background: rgba(34, 197, 94, 0.1);
+  color: #22c55e;
+}
+
+.review-badge.fail {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+}
+
+.review-badge.pending {
+  background: rgba(245, 158, 11, 0.1);
+  color: #f59e0b;
 }
 
 /* 文本截断 */
