@@ -2,8 +2,26 @@
   <div class="word-preview-panel h-full flex flex-col">
     <!-- 工具栏 -->
     <div class="toolbar border-b border-gray-200 px-4 py-3 flex-shrink-0">
-      <div class="flex items-center justify-end gap-4">
-        <!-- 搜索框 -->
+      <div class="flex items-center justify-between">
+        <!-- 左侧：预览模式切换 -->
+        <div class="flex items-center gap-2">
+          <button
+            v-if="wordDocument || sliceContent"
+            @click="previewMode = 'original'"
+            :class="['px-3 py-1.5 text-xs rounded-vercel-sm transition-colors', previewMode === 'original' ? 'bg-black text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200']"
+          >
+            原文预览
+          </button>
+          <button
+            v-if="sliceContent"
+            @click="previewMode = 'slice'"
+            :class="['px-3 py-1.5 text-xs rounded-vercel-sm transition-colors', previewMode === 'slice' ? 'bg-black text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200']"
+          >
+            切片预览
+          </button>
+        </div>
+
+        <!-- 右侧：搜索框 -->
         <div class="flex items-center gap-2">
           <div class="relative">
             <input
@@ -45,7 +63,7 @@
     <!-- 预览区域 -->
     <div class="preview-container flex-1 overflow-hidden relative">
       <!-- 空状态 -->
-      <div v-if="!wordDocument" class="h-full flex items-center justify-center bg-gray-50">
+      <div v-if="!wordDocument && !sliceContent" class="h-full flex items-center justify-center bg-gray-50">
         <div class="text-center">
           <svg class="w-16 h-16 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
@@ -55,9 +73,33 @@
         </div>
       </div>
 
-      <!-- Word 预览 -->
+      <!-- Word 预览 (原文模式) -->
       <div
-        v-else
+        v-if="previewMode === 'original' && wordDocument"
+        id="word-preview-container"
+        class="h-full overflow-y-auto p-6"
+        ref="previewContainerRef"
+      >
+        <div
+          id="word-preview"
+          class="docx-preview"
+          ref="previewRef"
+        ></div>
+      </div>
+
+      <!-- 切片预览模式 -->
+      <div
+        v-if="previewMode === 'slice' && sliceContent"
+        id="slice-preview-container"
+        class="h-full overflow-y-auto p-6"
+        ref="slicePreviewRef"
+      >
+        <!-- 切片内容会通过 v-html 渲染 -->
+      </div>
+
+      <!-- 有文档但未选择模式 -->
+      <div
+        v-if="wordDocument && !previewMode"
         id="word-preview-container"
         class="h-full overflow-y-auto p-6"
         ref="previewContainerRef"
@@ -85,7 +127,7 @@
 </template>
 
 <script setup>
-import { ref, watch, onMounted, nextTick } from 'vue'
+import { ref, watch, onMounted, nextTick, computed } from 'vue'
 import { renderAsync } from 'docx-preview'
 
 const props = defineProps({
@@ -100,10 +142,18 @@ const props = defineProps({
   sliceMetadata: {
     type: Array,
     default: () => []
+  },
+  // 切片内容（带 <!-- id --> 标记的 Markdown 文本）
+  sliceContent: {
+    type: [String, null],
+    default: null
   }
 })
 
 const emit = defineEmits(['line-clicked'])
+
+const previewMode = ref('original') // 'original' | 'slice'
+const slicePreviewRef = ref(null)
 
 const previewRef = ref(null)
 const previewContainerRef = ref(null)
@@ -126,6 +176,25 @@ watch(() => props.wordDocument, async (newDoc) => {
 watch(() => props.highlightLine, (newLine) => {
   if (newLine) {
     scrollToLine(newLine)
+  }
+})
+
+// 监听切片内容变化
+watch(() => props.sliceContent, async (newContent) => {
+  if (newContent && previewMode.value === 'slice') {
+    await nextTick()
+    renderSliceContent(newContent)
+  }
+})
+
+// 监听预览模式变化
+watch(previewMode, async (newMode) => {
+  if (newMode === 'slice' && props.sliceContent) {
+    await nextTick()
+    renderSliceContent(props.sliceContent)
+  } else if (newMode === 'original' && props.wordDocument) {
+    await nextTick()
+    await renderDocument(props.wordDocument)
   }
 })
 
@@ -181,46 +250,200 @@ const renderDocument = async (file) => {
 const injectLineNumbers = () => {
   if (!previewRef.value) return
 
-  let lineNumber = 1
   // docx-preview 生成的结构是 .docx-preview > section > p
   const sections = previewRef.value.querySelectorAll('section')
   console.log('Found sections:', sections.length)
 
-  // 切片背景色
-  const sliceColors = [
-    '#ffffff', // 零级 - 白色
-    '#f0f9ff', // 一级 - 天蓝
-    '#ecfdf5', // 二级 - 浅绿
-    '#fef3c7', // 三级 - 浅黄
-    '#fdf4ff', // 四级 - 浅紫
-    '#ffe4e6', // 五级 - 浅粉
-  ]
+  // 用于存储 elementId -> displayLineNumber 的映射
+  const lineNumberMap = new Map()
+  let displayLineNumber = 1
 
   sections.forEach((section, sectionIndex) => {
-    // 为每个 section 添加切片背景色
-    section.style.backgroundColor = sliceColors[sectionIndex % sliceColors.length]
-    section.style.padding = '8px'
     section.style.marginBottom = '8px'
 
     const elements = section.querySelectorAll('p, h1, h2, h3, h4, h5, h6, li, td, th')
     elements.forEach((el) => {
-      if (el.textContent.trim()) {
-        el.setAttribute('data-line', lineNumber)
-        el.style.cursor = 'pointer'
-        el.addEventListener('click', () => {
-          emit('line-clicked', lineNumber)
-        })
-        lineNumber++
+      const text = el.textContent.trim()
+      if (!text) return
+
+      // 尝试解析 HTML 注释中的 id: <!-- xxx -->
+      let elementId = null
+      let displayNumber = null
+
+      // 检查是否有 HTML 注释节点作为第一个子节点
+      const childNodes = Array.from(el.childNodes)
+      const commentNode = childNodes.find(node => node.nodeType === Node.COMMENT_NODE)
+      if (commentNode) {
+        const commentText = commentNode.textContent.trim()
+        const match = commentText.match(/^(\d+)$/)
+        if (match) {
+          elementId = parseInt(match[1])
+          displayNumber = elementId
+          lineNumberMap.set(elementId, displayLineNumber)
+          el.setAttribute('data-line', displayNumber)
+          el.setAttribute('data-element-id', elementId)
+        }
       }
+
+      if (elementId === null) {
+        // 没有标记的元素，使用递增行号
+        el.setAttribute('data-line', displayLineNumber)
+        displayNumber = displayLineNumber
+      }
+
+      el.style.cursor = 'pointer'
+      el.addEventListener('click', () => {
+        emit('line-clicked', displayNumber)
+      })
+
+      displayLineNumber++
     })
   })
-  console.log('Total lines:', lineNumber)
+
+  // 将映射暴露给外部，方便通过 elementId 查找行号
+  previewRef.value._lineNumberMap = lineNumberMap
+  console.log('Total lines:', displayLineNumber, 'Line number map size:', lineNumberMap.size)
+}
+
+// 渲染切片内容（带 <!-- id --> 标记的 Markdown）
+const renderSliceContent = (content) => {
+  if (!slicePreviewRef.value || !content) return
+
+  loading.value = true
+  console.log('Rendering slice content, length:', content.length)
+
+  try {
+    // 将 Markdown 转换为 HTML，同时保留 <!-- id --> 注释
+    const htmlContent = convertMarkdownToHtml(content)
+    slicePreviewRef.value.innerHTML = htmlContent
+
+    // 为切片内容注入行号
+    injectLineNumbersForSlice(slicePreviewRef.value)
+
+    console.log('Slice content rendered')
+  } catch (error) {
+    console.error('切片内容渲染失败:', error)
+  } finally {
+    loading.value = false
+  }
+}
+
+// 将 Markdown 转换为 HTML（保留 <!-- id --> 注释）
+const convertMarkdownToHtml = (markdown) => {
+  if (!markdown) return ''
+
+  const lines = markdown.split('\n')
+  let html = ''
+  let inTable = false
+
+  for (const line of lines) {
+    // 处理表格
+    if (line.trim().startsWith('|')) {
+      if (!inTable) {
+        html += '<table class="docx-table"><tbody>'
+        inTable = true
+      }
+      // 解析表格行
+      const cells = line.trim().split('|').filter(c => c.trim())
+      if (cells.length > 0 && !line.includes('---')) {
+        html += '<tr>'
+        for (const cell of cells) {
+          html += `<td>${cell.trim()}</td>`
+        }
+        html += '</tr>'
+      } else if (line.includes('---')) {
+        // 分隔行，跳过
+      }
+      continue
+    } else {
+      if (inTable) {
+        html += '</tbody></table>'
+        inTable = false
+      }
+    }
+
+    // 处理标题
+    const headingMatch = line.match(/^(#{1,6})\s+(.+)$/)
+    if (headingMatch) {
+      const level = headingMatch[1].length
+      const text = headingMatch[2]
+      html += `<h${level}>${text}</h${level}>`
+      continue
+    }
+
+    // 处理段落（保留 <!-- id --> 注释）
+    if (line.trim()) {
+      html += `<p>${line}</p>`
+    }
+  }
+
+  // 关闭未关闭的表格
+  if (inTable) {
+    html += '</tbody></table>'
+  }
+
+  return html
+}
+
+// 为切片内容注入行号（解析 <!-- id --> 注释）
+const injectLineNumbersForSlice = (container) => {
+  if (!container) return
+
+  // 用于存储 elementId -> displayLineNumber 的映射
+  const lineNumberMap = new Map()
+  let displayLineNumber = 1
+
+  const elements = container.querySelectorAll('p, h1, h2, h3, h4, h5, h6, li, td, th')
+  console.log('Found elements in slice:', elements.length)
+
+  elements.forEach((el) => {
+    const text = el.textContent.trim()
+    if (!text) return
+
+    // 尝试解析 HTML 注释中的 id: <!-- xxx -->
+    let elementId = null
+    let displayNumber = null
+
+    // 检查是否有 HTML 注释节点作为第一个子节点
+    const childNodes = Array.from(el.childNodes)
+    const commentNode = childNodes.find(node => node.nodeType === Node.COMMENT_NODE)
+    if (commentNode) {
+      const commentText = commentNode.textContent.trim()
+      const match = commentText.match(/^(\d+)$/)
+      if (match) {
+        elementId = parseInt(match[1])
+        displayNumber = elementId
+        lineNumberMap.set(elementId, displayLineNumber)
+        el.setAttribute('data-line', displayNumber)
+        el.setAttribute('data-element-id', elementId)
+      }
+    }
+
+    if (elementId === null) {
+      // 没有标记的元素，使用递增行号
+      el.setAttribute('data-line', displayLineNumber)
+      displayNumber = displayLineNumber
+    }
+
+    el.style.cursor = 'pointer'
+    el.addEventListener('click', () => {
+      emit('line-clicked', displayNumber)
+    })
+
+    displayLineNumber++
+  })
+
+  // 将映射暴露给外部
+  container._lineNumberMap = lineNumberMap
+  console.log('Slice total lines:', displayLineNumber, 'Line number map size:', lineNumberMap.size)
 }
 
 const scrollToLine = (lineNumber) => {
-  if (!previewRef.value) return
+  // 根据预览模式选择目标容器
+  const container = previewMode.value === 'slice' ? slicePreviewRef.value : previewRef.value
+  if (!container) return
 
-  const element = previewRef.value.querySelector(`[data-line="${lineNumber}"]`)
+  const element = container.querySelector(`[data-line="${lineNumber}"]`)
   if (element) {
     element.scrollIntoView({ behavior: 'smooth', block: 'center' })
 
@@ -229,6 +452,8 @@ const scrollToLine = (lineNumber) => {
     setTimeout(() => {
       element.classList.remove('highlight-line')
     }, 3000)
+  } else {
+    console.log('scrollToLine: element not found for line', lineNumber, 'in mode', previewMode.value)
   }
 }
 
@@ -292,23 +517,120 @@ const nextSearchResult = () => {
   }
 }
 
+// 通过 elementId（如 summary agent 返回的 38）获取对应的行号
+const getLineNumberByElementId = (elementId) => {
+  const container = previewMode.value === 'slice' ? slicePreviewRef.value : previewRef.value
+  if (!container || !container._lineNumberMap) return null
+  return container._lineNumberMap.get(elementId) || null
+}
+
 // 暴露方法给父组件调用
 defineExpose({
-  scrollToLine
+  scrollToLine,
+  getLineNumberByElementId
 })
 </script>
 
 <style>
-/* docx-preview 样式调整 */
+/* docx-preview 样式调整 - 保持原始 Word 外观 */
 .docx-preview {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  font-size: 14px;
-  line-height: 1.6;
+  font-family: 'Times New Roman', SimSun, '宋体', serif;
+  font-size: 12pt;
+  line-height: 1.5;
+  color: #000000;
 }
 
 .docx-preview section {
   position: relative;
-  margin-bottom: 16px;
+  margin-bottom: 0;
+  padding: 0;
+}
+
+.docx-preview p {
+  margin: 0;
+  text-align: justify;
+}
+
+.docx-preview h1 {
+  font-size: 22pt;
+  font-weight: bold;
+  margin: 24pt 0 12pt 0;
+  text-align: center;
+}
+
+.docx-preview h2 {
+  font-size: 16pt;
+  font-weight: bold;
+  margin: 18pt 0 12pt 0;
+}
+
+.docx-preview h3 {
+  font-size: 14pt;
+  font-weight: bold;
+  margin: 16pt 0 8pt 0;
+}
+
+.docx-preview table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 8pt 0;
+}
+
+.docx-preview td,
+.docx-preview th {
+  border: 0.5pt solid #000;
+  padding: 4pt 8pt;
+  vertical-align: top;
+}
+
+.docx-preview th {
+  background-color: #e6e6e6;
+  font-weight: bold;
+}
+
+/* 切片预览样式 */
+#slice-preview-container {
+  font-family: 'Times New Roman', SimSun, '宋体', serif;
+  font-size: 12pt;
+  line-height: 1.5;
+  color: #000000;
+}
+
+#slice-preview-container .docx-table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 8pt 0;
+}
+
+#slice-preview-container td,
+#slice-preview-container th {
+  border: 0.5pt solid #000;
+  padding: 4pt 8pt;
+  vertical-align: top;
+}
+
+#slice-preview-container h1 {
+  font-size: 22pt;
+  font-weight: bold;
+  margin: 24pt 0 12pt 0;
+  text-align: center;
+}
+
+#slice-preview-container h2 {
+  font-size: 16pt;
+  font-weight: bold;
+  margin: 18pt 0 12pt 0;
+}
+
+#slice-preview-container h3 {
+  font-size: 14pt;
+  font-weight: bold;
+  margin: 16pt 0 8pt 0;
+}
+
+#slice-preview-container p {
+  margin: 0 0 8pt 0;
+  text-align: justify;
 }
 
 /* 高亮样式 */

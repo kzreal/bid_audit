@@ -38,6 +38,7 @@ export const useAppStore = defineStore('app', {
     previewMode: 'original',             // 预览模式 (original/slice)
     projectName: '',                     // 项目名称
     sliceLevel: 0,                       // 切片层级
+    selectedSliceIndex: null,           // 当前选中的切片索引
 
     // 项目管理
     currentProjectId: null,              // 当前项目ID
@@ -555,6 +556,11 @@ export const useAppStore = defineStore('app', {
     // 设置切片层级
     setSliceLevel(level) {
       this.sliceLevel = level
+    },
+
+    // 设置选中的切片索引
+    setSelectedSliceIndex(index) {
+      this.selectedSliceIndex = index
     },
 
     // ========== 项目管理相关 ==========

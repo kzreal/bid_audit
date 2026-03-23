@@ -40,6 +40,7 @@
         :word-document="store.wordDocument"
         :highlight-line="store.highlightLine"
         :slice-metadata="store.sliceMetadata"
+        :slice-content="currentSliceContent"
         @line-clicked="handleLineClicked"
       />
     </div>
@@ -47,7 +48,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useAppStore } from '../stores/appStore'
 import TabNavigator from './TabNavigator.vue'
 import UploadTab from './UploadTab.vue'
@@ -58,6 +59,15 @@ import WordPreviewPanel from './WordPreviewPanel.vue'
 
 const store = useAppStore()
 const wordPreviewRef = ref(null)
+
+// 当前选中切片的内容
+const currentSliceContent = computed(() => {
+  if (store.selectedSliceIndex === null || store.selectedSliceIndex === undefined) {
+    return null
+  }
+  const slice = store.bidSlices[store.selectedSliceIndex]
+  return slice?.content || null
+})
 
 // Tab配置
 const tabs = [
