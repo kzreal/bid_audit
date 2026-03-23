@@ -1,290 +1,430 @@
-# 投标文件审核系统 - AI 辅助开发文档
+# 投标文件审核系统 - 项目文档
 
 ## 项目概述
 
 这是一个基于 HiAgent API 的投标文件智能审核系统，使用 Vue3 + Vite（前端）+ Flask + Python（后端）实现。
 
-## Design Context
-
-### Users
-企业内部审核团队，包括采购人员、法务人员等专业审核人员。他们在日常工作中使用该系统进行投标文件的智能审核，需要高效、专业的界面来提高工作效率。
-
-标书员，需要在日常工作中进行投标文件审核和任务管理的企业内部人员。他们需要在不同的招标项目中快速应用标准化的审核流程，同时也要能根据具体项目需求进行灵活调整。
-
-### Brand Personality
-专业 + 高效 + 极简。传达可靠、精准、快速的审核体验，让用户对系统有信心，同时享受现代极简设计带来的清晰体验。
-
-### Aesthetic Direction
-**Vercel 风格 + Next.js 文档风格**。以极简黑白配色为主，仅在头部保留蓝色渐变作为品牌识别。
-
-参考元素：
-- **Vercel 官网**：极简黑白、高对比度、1px 细边框、极小圆角 (2px)
-- **Next.js 文档站**：清晰的排版、柔和的背景分隔、精致的间距系统
-
-**核心设计语言**：
-- 极简黑白配色（#000000, #ffffff, #fafafa, #eaeaea）
-- 1px 细边框（无 2px 粗边框）
-- 极小圆角（rounded-sm 或完全不圆角）
-- 几乎无阴影
-- 高对比度文字
-- 精细的间距系统
-- 柔和的背景分隔（使用极浅灰色区分区域）
-
-### Design Principles
-
-1. **极简至上** (Minimalism First)
-   - 使用纯黑、纯白、极浅灰配色
-   - 1px 细边框，极小圆角 (2px)
-   - 移除不必要的阴影和装饰
-   - 让内容本身成为视觉焦点
-
-2. **品牌识别** (Brand Recognition)
-   - 头部保留蓝色渐变作为品牌标识
-   - 其他区域使用极简黑白风格
-   - 品牌蓝 (#0070f3) 仅用于交互状态（悬停、选中）
-
-3. **清晰层级** (Clear Hierarchy)
-   - 使用 1px 边框 + 背景色区分区域
-   - 柔和的背景分隔（#fafafa, #f4f4f5）
-   - 高对比度文字，确保可读性
-   - 精细的间距系统构建视觉节奏
-
-4. **状态传达** (Status Communication)
-   - 使用 Vercel 品牌蓝 (#0070f3) 和黑色表达不同状态
-   - 通过：品牌蓝填充 + 白色图标/文字
-   - 不通过：黑色填充 + 白色图标/文字
-   - 待确认：浅灰背景 + 黑色文字
-
-5. **交互反馈** (Immediate Feedback)
-   - 交互元素（按钮、输入框）悬停时显示品牌蓝边框
-   - 选中状态使用品牌蓝高亮
-   - 过渡动画流畅（200ms）
-   - 极简的加载动画
-
-### Design Tokens
-
-#### 主色调
-```css
---color-black: #000000;
---color-white: #ffffff;
---color-gray-50: #fafafa;
---color-gray-100: #f4f4f5;
---color-gray-200: #eaeaea;
---color-gray-300: #d4d4d8;
---color-gray-400: #a1a1aa;
---color-gray-500: #71717a;
-```
-
-#### 品牌色
-```css
---color-vercel-blue: #0070f3;
---color-vercel-blue-hover: #0051b3;
---color-vercel-blue-light: rgba(0, 112, 243, 0.1);
-```
-
-#### 状态色（Vercel 风格）
-```css
---status-pass-bg: #0070f3;        /* 品牌蓝填充 */
---status-pass-text: #ffffff;
---status-fail-bg: #000000;        /* 黑色填充 */
---status-fail-text: #ffffff;
---status-pending-bg: #f4f4f5;    /* 浅灰背景 */
---status-pending-text: #000000;
-```
-
-#### Typography
-```css
-font-family: 'Noto Sans SC', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
---text-xs: 0.75rem;      /* 12px */
---text-sm: 0.875rem;     /* 14px */
---text-base: 1rem;        /* 16px */
---text-lg: 1.125rem;      /* 18px */
---text-xl: 1.25rem;       /* 20px */
---text-2xl: 1.5rem;      /* 24px */
-```
-
-#### Spacing
-```css
---spacing-1: 0.25rem;   /* 4px */
---spacing-2: 0.5rem;    /* 8px */
---spacing-3: 0.75rem;   /* 12px */
---spacing-4: 1rem;      /* 16px */
---spacing-5: 1.25rem;   /* 20px */
---spacing-6: 1.5rem;    /* 24px */
---spacing-8: 2rem;      /* 32px */
-```
-
-#### Border Radius
-```css
---radius-sm: 0.125rem;   /* 2px - Vercel 风格 */
---radius-md: 0.25rem;    /* 4px */
---radius-lg: 0.5rem;     /* 8px */
-```
-
-#### Borders
-```css
---border-thin: 1px solid #eaeaea;
---border-brand: 1px solid #0070f3;
---border-black: 1px solid #000000;
-```
-
-#### Shadows
-```css
---shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-```
-Vercel 风格通常不使用阴影或仅使用极浅阴影。
-
-#### Transitions
-```css
---transition-fast: 150ms ease-out;
---transition-base: 200ms ease-in-out;
---transition-slow: 300ms ease-in-out;
-```
-
-### Layout Structure
-
-三栏布局（35% + 30% + 35%）：
-- **左侧**：招标信息输入 + 文件上传
-- **中间**：任务列表
-- **右侧**：审核详情
-
-响应式考虑：小屏幕时切换为单栏堆叠布局。
-
-**头部区域**：
-- 左侧头部：蓝色渐变背景（保留品牌识别）
-- 中间/右侧头部：白色背景 + 1px 底边框
-
-**内容区域**：
-- 白色卡片 + 1px 边框
-- 使用浅灰背景分隔区域
-
-### Accessibility
-
-- 所有交互元素都有明确的焦点状态（品牌蓝边框）
-- 颜色对比度符合 WCAG AA 标准
-- 支持键盘导航
-- 为重要状态提供视觉和非视觉提示（颜色 + 图标 + 文字）
-- 最小点击区域：44×44px
-
----
-
-## 模版功能设计上下文
-
-### Users
-标书员，需要在日常工作中进行投标文件审核和任务管理的企业内部人员。他们需要在不同的招标项目中快速应用标准化的审核流程，同时也要能根据具体项目需求进行灵活调整。
-
-### Brand Personality
-专业 + 高效 + 灵活。传达可靠、快速、易用的审核体验，让用户对模版功能有信心并愿意长期使用。
-
-### Aesthetic Direction
-简约现代风格。基于现有的蓝色系主色调，保持与当前设计语言的一致性。模版功能应该自然融入现有界面，通过清晰的视觉层次、柔和的阴影和流畅的动画来提升用户体验。
-
-### Design Principles（模版专属）
-
-1. **快速检索** (Quick Discovery)
-   - 模版库采用标签 + 搜索的组合方式，支持多标签筛选和关键词搜索
-   - 提供模版预览功能，让用户在不应用模版的情况下了解其内容
-   - 常用模版优先展示，支持收藏功能
-
-2. **灵活应用** (Flexible Application)
-   - 采用追加式应用，将模版任务追加到现有任务列表末尾
-   - 保留现有任务，支持后续调整和删除
-   - 应用后提供撤销功能，避免误操作
-
-3. **双路径创建** (Dual Creation Paths)
-   - 支持从头创建新模版：手动添加、编辑、删除任务，拖拽排序
-   - 支持从现有项目生成：将已完成的审核任务列表快速保存为模版
-   - 两种方式都应提供简单直观的操作流程
-
-4. **轻量编辑** (Lightweight Editing)
-   - 提供基础编辑能力：添加、删除、修改任务内容，拖拽排序
-   - 编辑器界面简洁，避免过度复杂
-   - 实时预览编辑结果
-
-5. **视觉延续** (Visual Continuity)
-   - 模版功能沿用现有设计 tokens 和组件样式
-   - 保持与任务列表、审核详情等现有模块的视觉一致性
-   - 使用相同的状态标签、卡片样式和交互动效
-
-### 模版功能设计规范
-
-#### 功能范围
-
-**1. 模版库管理**
-- 模版列表展示（卡片形式）
-- 标签筛选和关键词搜索
-- 模版预览（查看任务列表）
-- 模版收藏/取消收藏
-- 模版编辑和删除
-
-**2. 模版创建**
-- **手动创建**：新建模版 → 添加任务 → 编辑任务 → 拖拽排序 → 保存
-- **从项目生成**：选择已完成的审核项目 → 确认任务列表 → 输入模版名称 → 添加标签 → 保存
-
-**3. 模版编辑**
-- 模版基本信息编辑（名称、描述、标签）
-- 任务列表编辑（添加、删除、修改内容）
-- 拖拽排序任务
-- 实时预览
-
-**4. 模版应用**
-- 从模版库选择模版
-- 预览模版内容
-- 确认应用（追加到现有任务列表）
-- 支持撤销最近一次应用
-
-#### UI 结构建议
-
-**模版库入口**：
-- 在左侧输入区顶部添加「模版库」入口（图标 + 文字）
-- 点击后展开模版库抽屉或弹窗
-
-**模版库布局**：
-- 顶部：搜索框 + 标签筛选器
-- 中间：模版卡片网格（展示名称、标签、任务数量）
-- 底部：创建新模版按钮
-
-**模版编辑器**：
-- 左侧：任务列表（可拖拽排序）
-- 右侧：基本信息编辑 + 任务详情编辑
-
-#### Design Tokens 扩展（模版专属）
-
-**颜色**
-- 模版标签背景：bg-blue-50, bg-purple-50, bg-green-50, bg-orange-50
-- 模版标签文字：text-blue-700, text-purple-700, text-green-700, text-orange-700
-
-**图标**
-- 模版库：文档堆叠图标
-- 收藏：星形图标（空心/实心）
-- 拖拽：六个点的图标
-- 添加任务：加号图标
-- 预览：眼睛图标
-
-**交互动效**
-- 模版卡片悬停：轻微上移 + 阴影加深（0.5s）
-- 拖拽排序：平滑移动效果（0.2s）
-- 抽屉展开/收起：滑入滑出（0.3s）
+**核心功能**：
+1. 输入招标文件信息，AI 自动生成审核任务列表
+2. 支持单文件或多切片文件审核
+3. 模版库功能：保存和复用常用审核任务
+4. 实时审核状态展示（通过/不通过/待确认）
 
 ---
 
 ## 技术栈
 
 ### 前端
-- Vue 3 (Composition API)
-- Vite (构建工具)
-- Pinia (状态管理)
-- Tailwind CSS (样式框架)
-- Axios (HTTP 客户端)
+- **Vue 3** (Composition API)
+- **Vite** (构建工具)
+- **Pinia** (状态管理)
+- **Tailwind CSS** (样式框架)
+- **Axios** (HTTP 客户端)
 
 ### 后端
-- Flask (Web 框架)
-- Flask-CORS (跨域支持)
-- requests (HTTP 客户端)
+- **Flask** (Web 框架)
+- **Flask-CORS** (跨域支持)
+- **requests** (HTTP 客户端)
 
-### API
-- HiAgent API (智能审核服务)
+### 外部 API
+- **HiAgent API** (智能审核服务)
 
-## 快速启动
+---
 
-详细启动指南请参考 `mvp-guide.md` 或 `guide.md` 文件。
+## 目录结构
+
+```
+投标文件审核/
+├── backend_server.py          # Flask 后端服务（入口）
+├── hiagent_client.py         # HiAgent API 客户端封装
+├── config.py                 # 配置文件
+├── .env                      # 环境变量（API Key 等）
+├── CLAUDE.md                 # 本文档
+├── bid-review-system/        # 前端项目
+│   ├── src/
+│   │   ├── main.js           # Vue 入口
+│   │   ├── App.vue           # 根组件
+│   │   ├── style.css         # 全局样式
+│   │   ├── components/       # Vue 组件
+│   │   │   ├── Layout.vue                # 主布局（三栏）
+│   │   │   ├── BidRequirementInput.vue   # 招标信息输入
+│   │   │   ├── BidFileInput.vue          # 投标文件输入
+│   │   │   ├── TaskListOptimized.vue     # 任务列表
+│   │   │   ├── ReviewDetail.vue           # 审核详情
+│   │   │   ├── TemplateDrawer.vue         # 模版库抽屉
+│   │   │   ├── TemplateCard.vue           # 模版卡片
+│   │   │   ├── TemplateEditor.vue         # 模版编辑器
+│   │   │   └── TemplateTagSelector.vue    # 标签选择器
+│   │   ├── services/
+│   │   │   ├── hiagentService.js  # HiAgent API 调用
+│   │   │   └── templateService.js  # 模版数据服务
+│   │   ├── stores/
+│   │   │   └── appStore.js        # Pinia 状态管理
+│   │   └── utils/
+│   │       └── http.js             # Axios 封装
+│   ├── index.html
+│   ├── package.json
+│   └── vite.config.js
+```
+
+---
+
+## 启动方式
+
+### 后端服务
+```bash
+cd /Users/kyle/Projects/投标文件审核
+python3 backend_server.py
+```
+- 地址：`http://localhost:8888`
+- 局域网访问：`http://10.128.228.194:8888`
+
+### 前端服务
+```bash
+cd /Users/kyle/Projects/投标文件审核/bid-review-system
+npm run dev
+```
+- 开发服务器自动代理 `/hiagent/*` 请求到后端
+- 局域网访问：`http://10.128.228.194:5174`
+
+---
+
+## API 接口文档
+
+### 后端 Flask API
+
+基础路径：`http://localhost:8888`
+
+#### 1. 生成审核任务
+```
+POST /hiagent/generate-tasks
+```
+
+**请求体**：
+```json
+{
+  "requirement": "招标文件内容文本...",
+  "timestamp": "2024-01-01T00:00:00.000Z"
+}
+```
+
+**响应**：
+```json
+{
+  "code": 200,
+  "message": "任务生成成功",
+  "data": [
+    {
+      "id": 1,
+      "content": "任务描述1",
+      "subtasks": []
+    },
+    {
+      "id": 2,
+      "content": "任务描述2",
+      "subtasks": []
+    }
+  ],
+  "raw_text": "{\"output\": \"...\"}"
+}
+```
+
+#### 2. 审核任务（单文件）
+```
+POST /hiagent/review-task
+```
+
+**请求体**：
+```json
+{
+  "task": {
+    "id": 1,
+    "title": "任务描述"
+  },
+  "context": "投标文件内容...",
+  "timestamp": "2024-01-01T00:00:00.000Z"
+}
+```
+
+**响应**：
+```json
+{
+  "code": 200,
+  "message": "任务审核成功",
+  "data": {
+    "suggestion": "审核建议文本",
+    "evidence": "证据/来源文本"
+  },
+  "raw_text": "..."
+}
+```
+
+#### 3. 多切片审核任务
+```
+POST /hiagent/review-task-slices
+```
+
+**请求体**：
+```json
+{
+  "task": {
+    "id": 1,
+    "title": "任务描述"
+  },
+  "slices": ["切片1内容", "切片2内容", "切片3内容"],
+  "timestamp": "2024-01-01T00:00:00.000Z"
+}
+```
+
+**响应**：
+```json
+{
+  "code": 200,
+  "message": "多切片审核成功",
+  "data": {
+    "task": "任务描述",
+    "reviews": [
+      {
+        "suggestion": "切片1审核建议",
+        "evidence": "切片1证据"
+      },
+      {
+        "suggestion": "切片2审核建议",
+        "evidence": "切片2证据"
+      }
+    ]
+  }
+}
+```
+
+#### 4. 生成最终结论
+```
+POST /hiagent/generate-conclusion
+```
+
+**请求体**：
+```json
+{
+  "task": {
+    "id": 1,
+    "title": "任务描述"
+  },
+  "reviews": [
+    {
+      "suggestion": "切片1审核建议",
+      "evidence": "切片1证据"
+    }
+  ],
+  "timestamp": "2024-01-01T00:00:00.000Z"
+}
+```
+
+**响应**：
+```json
+{
+  "code": 200,
+  "message": "总结成功",
+  "data": {
+    "conclusion": "通过/不通过/待确认",
+    "reason": "原因说明",
+    "evidence": "证据"
+  },
+  "status": "通过",
+  "raw_text": "..."
+}
+```
+
+#### 5. 获取 API 状态
+```
+GET /hiagent/status
+```
+
+**响应**：
+```json
+{
+  "code": 200,
+  "message": "API 服务正常",
+  "data": {
+    "api_url": "https://prd-ai-studio.chint.com/api/proxy/api/v1",
+    "user_id": "250701283",
+    "status": "running"
+  }
+}
+```
+
+#### 6. 健康检查
+```
+GET /health
+```
+
+**响应**：
+```json
+{
+  "status": "ok",
+  "message": "HiAgent Backend Server is running"
+}
+```
+
+---
+
+## 前端数据结构
+
+### 任务对象 (Task)
+```typescript
+interface Task {
+  id: number | string;      // 唯一标识
+  title: string;             // 任务标题
+  description: string;       // 任务描述（可空）
+  subtasks: SubTask[];       // 子任务
+  review?: Review;           // 审核结果
+  createdAt: Date;           // 创建时间
+  updatedAt: Date;           // 更新时间
+}
+```
+
+### 审核结果对象 (Review)
+```typescript
+interface Review {
+  conclusion: '通过' | '不通过' | '待确认';  // 审核结论
+  reason: string;            // 审核原因
+  evidence: string;          // 证据/来源
+  bidSource?: string;         // 投标来源
+  requirementSource?: string;  // 招标要求来源
+  slices_reviews?: SliceReview[];  // 切片审核结果
+  createdAt: Date;           // 创建时间
+}
+```
+
+### 切片审核对象 (SliceReview)
+```typescript
+interface SliceReview {
+  suggestion: string;  // 审核建议
+  evidence: string;    // 证据
+}
+```
+
+### 模版对象 (Template)
+```typescript
+interface Template {
+  id: string;           // 模版ID
+  name: string;         // 模版名称
+  description: string;  // 模版描述
+  tags: string[];       // 标签
+  tasks: string[];      // 任务列表（字符串数组）
+  createdAt: string;    // 创建时间
+  updatedAt?: string;   // 更新时间
+}
+```
+
+---
+
+## 前端 Pinia Store
+
+### useAppStore 状态
+```javascript
+state: {
+  requirementText: '',      // 招标信息
+  bidSlices: [],           // 投标文件切片数组
+  contextText: '',         // 单个文本输入（兼容性保留）
+  tasks: [],               // 任务列表
+  selectedTaskId: null,     // 当前选中任务ID
+  reviewing: false,         // 审核中状态
+  apiStatus: null,          // API状态
+  loading: false,           // 加载状态
+  error: null,             // 错误信息
+  templateDrawerOpen: false,       // 模版库抽屉开关
+  currentEditingTemplate: null,     // 当前编辑的模版
+  appliedTemplateHistory: []        // 应用历史（用于撤销）
+}
+```
+
+### 关键 Getters
+```javascript
+selectedTask      // 当前选中的任务对象
+taskStats         // { total, reviewed, passed, failed, pending }
+canAnalyze        // 是否可以开始分析（requirementText 非空）
+canReview         // 是否可以开始审核
+useSliceReview    // 是否使用多切片审核（bidSlices.length > 0）
+canUndoTemplateApplication  // 是否可以撤销模版应用
+```
+
+---
+
+## 前端 API 服务 (hiagentService.js)
+
+```javascript
+// 生成审核任务
+generateTasks({ requirement: string })
+
+// 审核任务（单文件）
+reviewTask({ task: Task, context: string })
+
+// 多切片审核任务
+reviewTaskSlices({ task: Task, slices: string[] })
+
+// 生成最终审核结论
+generateConclusion({ task: Task|string, reviews: SliceReview[] })
+
+// 获取 API 状态
+getApiStatus()
+```
+
+---
+
+## 设计规范
+
+### 设计风格
+**Vercel 风格 + Next.js 文档风格**
+- 极简黑白配色为主
+- 头部保留蓝色渐变作为品牌识别
+- 1px 细边框，极小圆角 (2px)
+
+### 状态色
+```css
+通过: #22c55e (绿色)
+不通过: #ef4444 (红色)
+待确认: #f59e0b (黄色)
+```
+
+### 布局结构
+**三栏布局（35% + 30% + 35%）**：
+- **左侧（35%）**：招标信息输入 + 文件上传
+- **中间（30%）**：任务列表
+- **右侧（35%）**：审核详情
+
+---
+
+## 组件说明
+
+| 组件 | 说明 |
+|------|------|
+| `Layout.vue` | 主布局容器，包含头部和三栏内容区 |
+| `BidRequirementInput.vue` | 招标文件信息输入区 |
+| `BidFileInput.vue` | 投标文件输入区，支持多切片 |
+| `TaskListOptimized.vue` | 任务列表，支持状态筛选和动画 |
+| `ReviewDetail.vue` | 审核详情展示 |
+| `TemplateDrawer.vue` | 模版库抽屉（侧边滑出） |
+| `TemplateCard.vue` | 模版卡片组件 |
+| `TemplateEditor.vue` | 模版编辑器 |
+| `TemplateTagSelector.vue` | 模版标签选择器 |
+
+---
+
+## 环境变量 (.env)
+
+```env
+VITE_API_BASE_URL=https://prd-ai-studio.chint.com/api/proxy/api/v1
+VITE_TASK_CREATOR_API_KEY=your_api_key_here
+VITE_TASK_AUDITOR_API_KEY=your_api_key_here
+VITE_SUMMARY_API_KEY=your_api_key_here
+VITE_HIAGENT_USER_ID=250701283
+```
+
+---
+
+## 注意事项
+
+1. **CORS**：后端已配置 `CORS(app)`，允许所有来源的跨域请求
+2. **代理**：前端 Vite 开发服务器配置了代理，将 `/hiagent/*` 请求转发到 `http://localhost:8888`
+3. **重试机制**：前端 `http.js` 实现了请求重试机制（指数退避）
+4. **模版存储**：模版数据存储在浏览器 `localStorage`，键名为 `bid_review_templates`
