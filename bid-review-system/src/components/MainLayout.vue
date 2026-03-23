@@ -88,7 +88,29 @@ onMounted(async () => {
 
 // 处理高亮跳转
 const handleJumpToLine = (lineNumber) => {
-  if (wordPreviewRef.value) {
+  if (!lineNumber) return
+
+  // 查找包含该行号的切片
+  const sliceMetadata = store.sliceMetadata
+  let targetSliceIndex = -1
+  let targetLineInSlice = 0
+
+  for (let i = 0; i < sliceMetadata.length; i++) {
+    const slice = sliceMetadata[i]
+    if (lineNumber >= slice.startLine && lineNumber <= slice.endLine) {
+      targetSliceIndex = i
+      targetLineInSlice = lineNumber - slice.startLine + 1
+      break
+    }
+  }
+
+  // 如果找到了对应切片，切换到切片预览模式并选中该切片
+  if (targetSliceIndex >= 0) {
+    store.setPreviewMode('slice')
+    store.setSelectedSliceIndex(targetSliceIndex)
+    console.log(`跳转到切片 ${targetSliceIndex + 1}，切片内行号 ${targetLineInSlice}`)
+  } else if (wordPreviewRef.value) {
+    // 如果没找到切片，尝试直接跳转
     wordPreviewRef.value.scrollToLine(lineNumber)
   }
 }

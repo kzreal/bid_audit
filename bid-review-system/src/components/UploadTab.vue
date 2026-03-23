@@ -174,7 +174,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useAppStore } from '../stores/appStore'
 import { getAllProjects, getProjectById, saveProject, deleteProject, updateLastOpened } from '../services/projectService'
 
@@ -240,6 +240,9 @@ const onProjectChange = () => {
       parsed.value = true
     }
 
+    // 设置当前项目ID到 store
+    store.setCurrentProjectId(projectId)
+
     // 更新最后打开时间
     updateLastOpened(projectId)
 
@@ -293,7 +296,31 @@ const formatDate = (dateStr) => {
 // 初始化
 onMounted(() => {
   loadProjects()
+  restoreFromStore()
 })
+
+// 监听 tab 切换，当切回 upload tab 时恢复数据
+watch(() => store.currentTab, (newTab) => {
+  if (newTab === 'upload') {
+    restoreFromStore()
+  }
+})
+
+// 从 store 恢复数据
+const restoreFromStore = () => {
+  if (store.currentProjectId) {
+    selectedProjectId.value = store.currentProjectId
+    projectName.value = store.projectName || ''
+    selectedSliceLevel.value = store.sliceLevel || 0
+    sliceCount.value = store.bidSlices?.length || 0
+    parsed.value = store.bidSlices?.length > 0
+
+    // 恢复切片数据
+    if (store.bidSlices?.length > 0) {
+      // 切片已存在，不需要重新解析
+    }
+  }
+}
 
 const triggerFileInput = () => {
   fileInputRef.value?.click()

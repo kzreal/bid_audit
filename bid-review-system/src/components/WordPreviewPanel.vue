@@ -239,6 +239,9 @@ const renderDocument = async (file) => {
     await nextTick()
     injectLineNumbers()
 
+    // 修复锚定图片（wp:anchor）显示问题
+    fixAnchoredImages()
+
     console.log('Line numbers injected')
   } catch (error) {
     console.error('文档渲染失败:', error)
@@ -247,62 +250,116 @@ const renderDocument = async (file) => {
   }
 }
 
+// 修复锚定图片（wp:anchor）显示问题
+// docx-preview 对 wp:anchor 类型的图片支持不好，需要手动设置尺寸
+const fixAnchoredImages = () => {
+  if (!previewRef.value) return
+
+  const images = previewRef.value.querySelectorAll('img')
+  console.log('Checking images for anchored image fix, total:', images.length)
+
+  images.forEach((img, index) => {
+    // 检查图片是否可见（宽度为0或很小的通常是锚定图片）
+    if (img.width === 0 || img.offsetWidth === 0 || img.naturalWidth === 0) {
+      console.log(`Image ${index} has width 0, fixing...`)
+
+      // 使用 naturalWidth/naturalHeight 如果可用
+      if (img.naturalWidth > 0 && img.naturalHeight > 0) {
+        img.style.width = 'auto'
+        img.style.height = 'auto'
+        img.style.minWidth = '100px'
+        img.style.minHeight = '50px'
+      } else {
+        // 如果没有自然尺寸，设置默认值
+        img.style.width = '100px'
+        img.style.height = '50px'
+      }
+    }
+  })
+}
+
 const injectLineNumbers = () => {
   if (!previewRef.value) return
 
-  // docx-preview 生成的结构是 .docx-preview > section > p
+  // docx-preview 生成的结构是 .docx-preview > section
+  // 遍历所有元素，按文档顺序编号
   const sections = previewRef.value.querySelectorAll('section')
   console.log('Found sections:', sections.length)
 
-  // 用于存储 elementId -> displayLineNumber 的映射
-  const lineNumberMap = new Map()
-  let displayLineNumber = 1
+  let lineNumber = 1
 
-  sections.forEach((section, sectionIndex) => {
-    section.style.marginBottom = '8px'
+  // 使用 TreeWalker 按文档顺序遍历所有元素
+  const walker = document.createTreeWalker(
+    previewRef.value,
+    NodeFilter.SHOW_ELEMENT,
+    null,
+    false
+  )
 
-    const elements = section.querySelectorAll('p, h1, h2, h3, h4, h5, h6, li, td, th')
-    elements.forEach((el) => {
-      const text = el.textContent.trim()
-      if (!text) return
+  const elements = []
+  let node
+  while (node = walker.nextNode()) {
+    elements.push(node)
+  }
 
-      // 尝试解析 HTML 注释中的 id: <!-- xxx -->
-      let elementId = null
-      let displayNumber = null
+  console.log('Total elements found by TreeWalker:', elements.length)
 
-      // 检查是否有 HTML 注释节点作为第一个子节点
-      const childNodes = Array.from(el.childNodes)
-      const commentNode = childNodes.find(node => node.nodeType === Node.COMMENT_NODE)
-      if (commentNode) {
-        const commentText = commentNode.textContent.trim()
-        const match = commentText.match(/^(\d+)$/)
-        if (match) {
-          elementId = parseInt(match[1])
-          displayNumber = elementId
-          lineNumberMap.set(elementId, displayLineNumber)
-          el.setAttribute('data-line', displayNumber)
-          el.setAttribute('data-element-id', elementId)
-        }
-      }
+  // 再次遍历，按顺序编号
+  elements.forEach((el) => {
+    const tagName = el.tagName.toLowerCase()
 
-      if (elementId === null) {
-        // 没有标记的元素，使用递增行号
-        el.setAttribute('data-line', displayLineNumber)
-        displayNumber = displayLineNumber
-      }
+    // 只对特定类型的元素编号
+    if (!['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'li', 'tr', 'td', 'th', 'img', 'figure'].includes(tagName)) {
+      return
+    }
 
+    // 表格行需要特殊处理（td/th 在 tr 内）
+    if (tagName === 'td' || tagName === 'th') {
+      // 跳过 - 会在 tr 处理时一起处理
+      return
+    }
+
+    // 处理 tr（表格行）- 整个行作为一个编号
+    if (tagName === 'tr') {
+      // 检查是否已经处理过
+      if (el.hasAttribute('data-line')) return
+
+      el.setAttribute('data-line', lineNumber)
+      el.setAttribute('data-element-id', lineNumber)
       el.style.cursor = 'pointer'
       el.addEventListener('click', () => {
-        emit('line-clicked', displayNumber)
+        emit('line-clicked', lineNumber)
       })
+      lineNumber++
+      return
+    }
 
-      displayLineNumber++
+    // 处理图片
+    if (tagName === 'img' || tagName === 'figure') {
+      el.setAttribute('data-line', lineNumber)
+      el.setAttribute('data-element-id', lineNumber)
+      el.style.cursor = 'pointer'
+      el.addEventListener('click', () => {
+        emit('line-clicked', lineNumber)
+      })
+      lineNumber++
+      return
+    }
+
+    // 其他元素（p, h1-h6, li）- 检查是否有内容
+    const text = el.textContent?.trim() || ''
+    if (!text) return
+
+    el.setAttribute('data-line', lineNumber)
+    el.setAttribute('data-element-id', lineNumber)
+    el.style.cursor = 'pointer'
+    el.addEventListener('click', () => {
+      emit('line-clicked', lineNumber)
     })
+    lineNumber++
   })
 
-  // 将映射暴露给外部，方便通过 elementId 查找行号
-  previewRef.value._lineNumberMap = lineNumberMap
-  console.log('Total lines:', displayLineNumber, 'Line number map size:', lineNumberMap.size)
+  console.log('Total line numbers assigned:', lineNumber - 1)
 }
 
 // 渲染切片内容（带 <!-- id --> 标记的 Markdown）
@@ -586,6 +643,29 @@ defineExpose({
 .docx-preview th {
   background-color: #e6e6e6;
   font-weight: bold;
+}
+
+/* 修复 wp:anchor 锚定图片（签名、二维码等）显示问题 */
+.docx-preview img {
+  max-width: 100%;
+  height: auto;
+}
+
+/* 确保所有图片有最小尺寸，防止锚定图片被压缩为0 */
+.docx-preview img[width="0"],
+.docx-preview img[style*="width: 0"] {
+  min-width: 100px !important;
+  min-height: 50px !important;
+  width: auto !important;
+  height: auto !important;
+}
+
+/* 处理锚定图片的容器 */
+.docx-preview span:has(> img[width="0"]),
+.docx-preview div:has(> img[width="0"]) {
+  display: inline-block !important;
+  min-width: 100px !important;
+  min-height: 50px !important;
 }
 
 /* 切片预览样式 */

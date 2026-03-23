@@ -110,6 +110,11 @@ export const useAppStore = defineStore('app', {
       this.bidSlices = slices
     },
 
+    // 设置切片元数据
+    setSliceMetadata(metadata) {
+      this.sliceMetadata = metadata
+    },
+
     // 清空招标信息
     clearRequirement() {
       this.requirementText = ''

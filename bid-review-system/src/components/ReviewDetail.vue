@@ -147,18 +147,15 @@
               <p class="text-sm text-black leading-relaxed">{{ sliceReview.suggestion }}</p>
             </div>
             <div v-if="sliceReview.evidence" class="space-y-1">
-              <!-- 行号标签 -->
+              <!-- 切片标题 -->
               <div class="flex items-center gap-2 mb-1">
-                <span v-if="sliceReview.lineNumber" class="px-2 py-0.5 bg-vercel-blue text-white rounded-vercel-sm text-xs font-medium">
-                  段落 {{ sliceReview.lineNumber }}
-                </span>
-                <span v-if="sliceReview.sliceTitle" class="text-xs text-gray-400">
+                <span v-if="sliceReview.sliceTitle" class="text-xs text-gray-500 font-medium">
                   {{ sliceReview.sliceTitle }}
                 </span>
               </div>
               <!-- 证据内容 -->
-              <div class="flex items-start gap-2 text-xs text-gray-500 bg-gray-50 rounded-vercel-sm p-2">
-                <svg class="w-3.5 h-3.5 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div class="flex items-start gap-2 text-xs text-gray-600 bg-gray-50 rounded-vercel-sm p-2">
+                <svg class="w-3.5 h-3.5 flex-shrink-0 mt-0.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                 </svg>
                 <span class="leading-relaxed">{{ sliceReview.evidence }}</span>

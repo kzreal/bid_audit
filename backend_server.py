@@ -259,11 +259,14 @@ def generate_conclusion():
 
         # 如果 task 是对象，从中提取任务描述 - 优先使用 title
         if isinstance(task_input, dict):
-            # 优先使用 title，如果不存在再使用 description
-            task = task_input.get('title', task_input.get('description', ''))
-            # 如果 title 也是空，使用 description 作为 fallback
-            if not task:
-                task = task_input.get('description', '')
+            # 优先使用 title，如果不存在或为 None 再使用 description
+            title = task_input.get('title')
+            if title:
+                task = title
+            else:
+                # title 不存在或为 None，尝试 description
+                description = task_input.get('description')
+                task = description if description else ''
         else:
             # 如果是字符串，直接使用
             task = str(task_input)
@@ -340,11 +343,14 @@ def review_task():
 
         # 如果 task 是对象，从中提取任务描述 - 优先使用 title
         if isinstance(task_input, dict):
-            # 优先使用 title，如果不存在再使用 description
-            task = task_input.get('title', task_input.get('description', ''))
-            # 如果 title 也是空，使用 description 作为 fallback
-            if not task:
-                task = task_input.get('description', '')
+            # 优先使用 title，如果不存在或为 None 再使用 description
+            title = task_input.get('title')
+            if title:
+                task = title
+            else:
+                # title 不存在或为 None，尝试 description
+                description = task_input.get('description')
+                task = description if description else ''
         else:
             # 如果是字符串，直接使用
             task = str(task_input)
@@ -411,11 +417,14 @@ def review_task_slices():
 
         # 提取任务描述 - 优先使用 title，因为 description 可能为空字符串
         if isinstance(task_input, dict):
-            # 优先使用 title，如果不存在再使用 description
-            task = task_input.get('title', task_input.get('description', ''))
-            # 如果 title 也是空，使用 description 作为 fallback
-            if not task:
-                task = task_input.get('description', '')
+            # 优先使用 title，如果不存在或为 None 再使用 description
+            title = task_input.get('title')
+            if title:
+                task = title
+            else:
+                # title 不存在或为 None，尝试 description
+                description = task_input.get('description')
+                task = description if description else ''
         else:
             task = str(task_input)
 
@@ -442,13 +451,13 @@ def review_task_slices():
         # 只返回原始切片审核结果，不做整合处理
         print(f"\n切片审核完成，共 {len(reviews)} 个切片")
 
-        # 返回简化格式（只包含 task 和 reviews）
+        # 返回简化格式（包含 task 和 slices_reviews）
         return jsonify({
             'code': 200,
             'message': '多切片审核成功',
             'data': {
                 'task': task,
-                'reviews': reviews
+                'slices_reviews': reviews
             }
         })
 
@@ -501,11 +510,14 @@ def summarize_reviews():
 
         # 提取任务描述 - 优先使用 title，因为 description 可能为空字符串
         if isinstance(task_input, dict):
-            # 优先使用 title，如果不存在再使用 description
-            task = task_input.get('title', task_input.get('description', ''))
-            # 如果 title 也是空，使用 description 作为 fallback
-            if not task:
-                task = task_input.get('description', '')
+            # 优先使用 title，如果不存在或为 None 再使用 description
+            title = task_input.get('title')
+            if title:
+                task = title
+            else:
+                # title 不存在或为 None，尝试 description
+                description = task_input.get('description')
+                task = description if description else ''
         else:
             task = str(task_input)
 
@@ -794,10 +806,10 @@ def slice_document(doc, max_level, ocr_svc=None):
             if level > 0 and level <= max_level:
                 # 将当前栈顶章节添加到 sections，并从栈中移除
                 if section_stack[-1]['content']:
+                    # endLine 应该是上一个内容块的行号（line_no - 1）
                     section_stack[-1]['endLine'] = line_no - 1
-                    sections.append(section_stack[-1])
+                    sections.append(section_stack.pop())
                     section_index += 1
-                    section_stack.pop()
 
                 new_section = {
                     'level': level,
@@ -811,7 +823,7 @@ def slice_document(doc, max_level, ocr_svc=None):
                     section_stack.pop()
 
                 section_stack.append(new_section)
-                # 标题本身也需要标记行号
+                # 标题本身也需要标记行号，使用当前 line_no 作为 id
                 section_stack[-1]['content'].append({'type': 'heading', 'level': level, 'text': text, 'line': line_no, 'id': line_no})
                 line_no += 1
             else:
@@ -831,7 +843,6 @@ def slice_document(doc, max_level, ocr_svc=None):
         elif isinstance(block, Table):
             # 表格处理 - 每一行都标记行号
             table_content = []
-            table_id_start = line_no
             for row_idx, row in enumerate(block.rows):
                 row_data = []
                 for cell in row.cells:
@@ -842,9 +853,10 @@ def slice_document(doc, max_level, ocr_svc=None):
                 line_no += 1
 
     # 添加栈中剩余的章节
-    for section in section_stack:
+    # 重要：endLine 应该是最后一个内容块的行号
+    for section in reversed(section_stack):
         if section['content']:
-            section['endLine'] = line_no - 1 if 'endLine' not in section else section['endLine']
+            section['endLine'] = line_no - 1
             sections.append(section)
 
     return sections

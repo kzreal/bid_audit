@@ -415,9 +415,7 @@ class TaskAuditor(HiAgentClient):
         """
         input_data = {
             "task": task,
-            "context": context,
-            "extraction": context,  # 工作流必需的字段，使用 context 作为提取结果
-            "type": 2  # 2 表示审核任务
+            "context": context
         }
 
         print(f"\n=== 审核任务 ===")

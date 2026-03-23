@@ -119,11 +119,11 @@ export const reviewTaskSlices = async (params) => {
     http.post('/hiagent/review-task-slices', requestData)
   )
 
-  // 后端返回格式: {code: 200, data: {task, reviews: [{suggestion, evidence}]}}
+  // 后端返回格式: {code: 200, data: {task, slices_reviews: [{suggestion, evidence}]}}
   // 不做任何汇总处理，直接返回原始数据
   // 汇总和状态判断会在后续由 summary agent 完成
   const data = response.data || {}
-  const reviews = data.reviews || []
+  const reviews = data.slices_reviews || []
 
   return {
     data: {
