@@ -62,12 +62,15 @@
         @click="bidSourceExpanded = !bidSourceExpanded"
         class="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-gray-50 transition-colors"
       >
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-2 flex-wrap">
           <svg class="w-4 h-4 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
           </svg>
           <span class="text-sm font-semibold text-black">投标来源</span>
-          <span class="text-xs text-gray-400">({{ parseLineNumbersAndGetContent(selectedTask.review.bidSource).length }})</span>
+          <!-- 直接显示行号范围 -->
+          <span class="text-xs text-vercel-blue font-medium">
+            {{ formatBidSourceSummary(selectedTask.review.bidSource) }}
+          </span>
         </div>
         <svg
           class="w-5 h-5 text-gray-400 transition-transform duration-200"
@@ -86,6 +89,16 @@
             :key="idx"
             class="bg-gray-50 border border-gray-200 rounded-vercel-sm p-3"
           >
+            <!-- 行号标签 -->
+            <div class="flex items-center gap-2 mb-2">
+              <span class="px-2 py-0.5 bg-vercel-blue text-white rounded-vercel-sm text-xs font-medium">
+                {{ item.displayRange }}
+              </span>
+              <span v-if="item.lineNumbers.length > 1" class="text-xs text-gray-400">
+                ({{ item.lineNumbers.length }} 处相关)
+              </span>
+            </div>
+            <!-- 内容 -->
             <div class="max-h-32 overflow-y-auto">
               <p class="text-xs text-black font-mono leading-relaxed whitespace-pre">{{ item.originalLine }}</p>
             </div>
@@ -133,11 +146,23 @@
             <div v-if="sliceReview.suggestion" class="mb-2">
               <p class="text-sm text-black leading-relaxed">{{ sliceReview.suggestion }}</p>
             </div>
-            <div v-if="sliceReview.evidence" class="flex items-start gap-2 text-xs text-gray-500">
-              <svg class="w-3.5 h-3.5 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-              </svg>
-              <span>证据: {{ sliceReview.evidence }}</span>
+            <div v-if="sliceReview.evidence" class="space-y-1">
+              <!-- 行号标签 -->
+              <div class="flex items-center gap-2 mb-1">
+                <span v-if="sliceReview.lineNumber" class="px-2 py-0.5 bg-vercel-blue text-white rounded-vercel-sm text-xs font-medium">
+                  段落 {{ sliceReview.lineNumber }}
+                </span>
+                <span v-if="sliceReview.sliceTitle" class="text-xs text-gray-400">
+                  {{ sliceReview.sliceTitle }}
+                </span>
+              </div>
+              <!-- 证据内容 -->
+              <div class="flex items-start gap-2 text-xs text-gray-500 bg-gray-50 rounded-vercel-sm p-2">
+                <svg class="w-3.5 h-3.5 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                </svg>
+                <span class="leading-relaxed">{{ sliceReview.evidence }}</span>
+              </div>
             </div>
           </div>
         </div>
@@ -209,6 +234,27 @@ const getConclusionTextClass = (conclusion) => {
   return colorMap[conclusion] || 'text-gray-600'
 }
 
+// 格式化投标来源摘要，直接显示行号范围
+const formatBidSourceSummary = (bidSource) => {
+  if (!bidSource) return ''
+
+  const ranges = parseLineRanges(bidSource)
+  if (ranges.length === 0) {
+    // 如果解析不出行号，直接返回原始内容的前50个字符
+    const str = bidSource.toString()
+    return str.length > 50 ? str.substring(0, 50) + '...' : str
+  }
+
+  // 格式化行号范围
+  return ranges.map(range => {
+    if (range.start === range.end) {
+      return `${range.start}`
+    } else {
+      return `${range.start}-${range.end}`
+    }
+  }).join('，')
+}
+
 // 解析行号范围
 const parseLineRanges = (bidSource) => {
   if (!bidSource) return []
@@ -259,6 +305,8 @@ const parseLineNumbersAndGetContent = (bidSource) => {
     for (const range of ranges) {
       // 为每个范围收集所有行
       const rangeLines = []
+      let lineNumbers = []
+
       for (let lineNumber = range.start; lineNumber <= range.end; lineNumber++) {
         // 查找该行号的切片内容
         // 行号格式：<!-- 行号 --> 内容
@@ -268,6 +316,7 @@ const parseLineNumbersAndGetContent = (bidSource) => {
         })
 
         if (matchedLine) {
+          lineNumbers.push(lineNumber)
           // 保留原行，包括 <!-- 行号 --> 标记
           const content = matchedLine.trim()
           rangeLines.push(content)
@@ -277,7 +326,9 @@ const parseLineNumbersAndGetContent = (bidSource) => {
       // 如果找到该范围的行，作为一个片段添加到结果
       if (rangeLines.length > 0) {
         results.push({
-          originalLine: rangeLines.join('\n')
+          originalLine: rangeLines.join('\n'),
+          lineNumbers: lineNumbers,
+          displayRange: range.start === range.end ? `段落 ${range.start}` : `段落 ${range.start}-${range.end}`
         })
       }
     }
