@@ -674,8 +674,8 @@ class SummaryAgent(HiAgentClient):
                     result['evidence'] = inner_data.get('evidence', '')
                 except json.JSONDecodeError:
                     # content_str 不是 JSON，直接使用
-                        result['reason'] = content_str
-                        result['evidence'] = content_str
+                    result['reason'] = content_str
+                    result['evidence'] = content_str
 
         except json.JSONDecodeError:
             print(f"JSON 解析失败: {result_text}")
