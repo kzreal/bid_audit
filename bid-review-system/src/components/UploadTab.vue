@@ -1,5 +1,35 @@
 <template>
   <div class="upload-tab p-5">
+    <!-- 项目选择器 -->
+    <div class="mb-5">
+      <label class="block text-sm font-medium text-black mb-2">选择项目</label>
+      <div class="flex gap-2">
+        <select
+          v-model="selectedProjectId"
+          @change="onProjectChange"
+          class="flex-1 border border-gray-300 rounded-vercel-sm px-4 py-2.5 text-sm focus:outline-none focus:border-black transition-colors bg-white"
+        >
+          <option value="">-- 新建项目 --</option>
+          <option v-for="project in projects" :key="project.id" :value="project.id">
+            {{ project.name }} ({{ project.fileName }})
+          </option>
+        </select>
+        <button
+          v-if="selectedProjectId"
+          @click="confirmDeleteProject"
+          class="px-3 py-2 border border-gray-300 rounded-vercel-sm text-sm text-gray-600 hover:text-red-500 hover:border-red-500 transition-colors"
+          title="删除项目"
+        >
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+          </svg>
+        </button>
+      </div>
+      <p v-if="selectedProjectId" class="mt-1 text-xs text-gray-500">
+        最后打开: {{ formatDate(selectedProject?.lastOpenedAt) }}
+      </p>
+    </div>
+
     <!-- 项目名称 -->
     <div class="mb-5">
       <label class="block text-sm font-medium text-black mb-2">项目名称</label>
@@ -144,8 +174,9 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useAppStore } from '../stores/appStore'
+import { getAllProjects, getProjectById, saveProject, deleteProject, updateLastOpened } from '../services/projectService'
 
 const store = useAppStore()
 
@@ -160,6 +191,8 @@ const sliceCount = ref(0)
 const message = ref('')
 const messageType = ref('info')
 const fileInputRef = ref(null)
+const selectedProjectId = ref('')
+const projects = ref([])
 
 const sliceLevels = [
   { value: 0, label: '零级' },
@@ -169,8 +202,97 @@ const sliceLevels = [
   { value: -1, label: '全部' }
 ]
 
+// 选中的项目对象
+const selectedProject = computed(() => {
+  if (!selectedProjectId.value) return null
+  return projects.value.find(p => p.id === selectedProjectId.value) || null
+})
+
 const canCreate = computed(() => {
   return projectName.value.trim() && uploadedFile.value && parsed.value
+})
+
+// 加载项目列表
+const loadProjects = () => {
+  projects.value = getAllProjects()
+}
+
+// 选择项目时触发
+const onProjectChange = () => {
+  const projectId = selectedProjectId.value
+  if (!projectId) {
+    // 新建项目，清空表单
+    resetForm()
+    return
+  }
+
+  const project = getProjectById(projectId)
+  if (project) {
+    // 填充表单数据
+    projectName.value = project.name
+    selectedSliceLevel.value = project.sliceLevel || 0
+    sliceCount.value = project.sliceCount || 0
+
+    // 加载切片数据到 store
+    if (project.slices && project.slices.length > 0) {
+      store.setBidSlices(project.slices)
+      store.setSliceMetadata(project.sliceMetadata || [])
+      parsed.value = true
+    }
+
+    // 更新最后打开时间
+    updateLastOpened(projectId)
+
+    showMessage(`已加载项目: ${project.name}`, 'success')
+  }
+}
+
+// 重置表单
+const resetForm = () => {
+  projectName.value = ''
+  uploadedFile.value = null
+  selectedSliceLevel.value = 0
+  parsed.value = false
+  sliceCount.value = 0
+  store.setBidSlices([])
+  store.setSliceMetadata([])
+  store.setWordDocument(null)
+  if (fileInputRef.value) {
+    fileInputRef.value.value = ''
+  }
+}
+
+// 确认删除项目
+const confirmDeleteProject = () => {
+  if (!selectedProjectId.value) return
+  const project = selectedProject.value
+  if (!project) return
+
+  if (confirm(`确定要删除项目"${project.name}"吗？`)) {
+    deleteProject(project.id)
+    store.deleteProject(project.id)
+    selectedProjectId.value = ''
+    resetForm()
+    loadProjects()
+    showMessage('项目已删除', 'success')
+  }
+}
+
+// 格式化日期
+const formatDate = (dateStr) => {
+  if (!dateStr) return ''
+  const date = new Date(dateStr)
+  return date.toLocaleString('zh-CN', {
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit'
+  })
+}
+
+// 初始化
+onMounted(() => {
+  loadProjects()
 })
 
 const triggerFileInput = () => {
@@ -263,6 +385,27 @@ const createProject = async () => {
     // 保存项目配置到 store
     store.setProjectName(projectName.value)
     store.setSliceLevel(selectedSliceLevel.value)
+
+    // 保存项目数据到 localStorage
+    const projectData = {
+      id: selectedProjectId.value || undefined,
+      name: projectName.value,
+      fileName: uploadedFile.value?.name || '',
+      fileSize: uploadedFile.value?.size || 0,
+      sliceLevel: selectedSliceLevel.value,
+      sliceCount: sliceCount.value,
+      slices: store.bidSlices,
+      sliceMetadata: store.sliceMetadata
+    }
+    const saved = saveProject(projectData)
+
+    // 更新当前项目ID
+    selectedProjectId.value = saved.id
+    store.setCurrentProjectId(saved.id)
+
+    // 重新加载项目列表
+    loadProjects()
+
     showMessage('项目创建成功', 'success')
 
     // 切换到创建任务 Tab

@@ -681,7 +681,7 @@ def _get_image_format(image_element, doc) -> str:
     return 'png'
 
 
-def _get_image_format_from_rid(self, rId: str, doc) -> str:
+def _get_image_format_from_rid(rId: str, doc) -> str:
     """从 relationship ID 获取图片格式"""
     try:
         image_part = doc.part.related_parts[rId]
@@ -811,35 +811,35 @@ def slice_document(doc, max_level, ocr_svc=None):
                     section_stack.pop()
 
                 section_stack.append(new_section)
+                # 标题本身也需要标记行号
+                section_stack[-1]['content'].append({'type': 'heading', 'level': level, 'text': text, 'line': line_no, 'id': line_no})
                 line_no += 1
             else:
                 if level > 0:
-                    section_stack[-1]['content'].append({'type': 'heading', 'level': level, 'text': text, 'line': line_no})
+                    section_stack[-1]['content'].append({'type': 'heading', 'level': level, 'text': text, 'line': line_no, 'id': line_no})
                 elif text:
-                    section_stack[-1]['content'].append({'type': 'paragraph', 'text': text, 'line': line_no})
+                    section_stack[-1]['content'].append({'type': 'paragraph', 'text': text, 'line': line_no, 'id': line_no})
                 line_no += 1
 
             # 处理图片
             for img in images:
                 description = processed_images.get(img['id'])
-                if description:
-                    section_stack[-1]['content'].append({'type': 'image', 'text': f'[图片: {description}]', 'line': line_no})
-                else:
-                    section_stack[-1]['content'].append({'type': 'image', 'text': '[图片: 未识别图片]', 'line': line_no})
+                img_text = f'[图片: {description}]' if description else '[图片: 未识别图片]'
+                section_stack[-1]['content'].append({'type': 'image', 'text': img_text, 'line': line_no, 'id': line_no})
                 line_no += 1
 
         elif isinstance(block, Table):
-            # 表格处理
+            # 表格处理 - 每一行都标记行号
             table_content = []
-            for row in block.rows:
+            table_id_start = line_no
+            for row_idx, row in enumerate(block.rows):
                 row_data = []
                 for cell in row.cells:
                     row_data.append(cell.text.strip().replace('\n', ' '))
                 table_content.append(row_data)
-
-            if table_content:
-                section_stack[-1]['content'].append({'type': 'table', 'data': table_content, 'line': line_no})
-                line_no += len(table_content)
+                # 每个表格行都有自己的行号标记
+                section_stack[-1]['content'].append({'type': 'table-row', 'data': row_data, 'line': line_no, 'id': line_no})
+                line_no += 1
 
     # 添加栈中剩余的章节
     for section in section_stack:

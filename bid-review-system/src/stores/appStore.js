@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { generateTasks, reviewTask, reviewTaskSlices, generateConclusion } from '../services/hiagentService'
+import { getAllProjects, saveProject, deleteProject } from '../services/projectService'
 
 export const useAppStore = defineStore('app', {
   state: () => ({
@@ -36,7 +37,11 @@ export const useAppStore = defineStore('app', {
     highlightLine: null,                 // 高亮行号
     previewMode: 'original',             // 预览模式 (original/slice)
     projectName: '',                     // 项目名称
-    sliceLevel: 0                        // 切片层级
+    sliceLevel: 0,                       // 切片层级
+
+    // 项目管理
+    currentProjectId: null,              // 当前项目ID
+    projects: []                         // 项目列表
   }),
 
   getters: {
@@ -391,30 +396,44 @@ export const useAppStore = defineStore('app', {
           endLine: s.endLine || s.startLine
         }))
 
-        // 转换内容为纯文本
+        // 转换内容为纯文本（使用 alltomarkdown 格式：<!--id--> 标记）
         this.bidSlices = slices.map(s => {
-          const contentText = s.content.map(item => {
+          let contentText = ''
+          let inTable = false
+
+          s.content.forEach((item, idx) => {
+            const idMarker = `<!-- ${item.id || item.line} -->`
+
             if (item.type === 'heading') {
-              return ' '.repeat(item.level - 1) + '# ' + item.text
+              contentText += `${idMarker} ${'#'.repeat(item.level)} ${item.text}\n`
+              inTable = false
             } else if (item.type === 'paragraph') {
-              return item.text
-            } else if (item.type === 'table') {
-              const header = item.data[0]
-              const rows = item.data.slice(1)
-              let md = '| ' + header.join(' | ') + ' |\n'
-              md += '| ' + header.map(() => '---').join(' | ') + ' |\n'
-              rows.forEach(row => {
-                md += '| ' + row.join(' | ') + ' |\n'
-              })
-              return md
+              contentText += `${idMarker} ${item.text}\n`
+              inTable = false
+            } else if (item.type === 'table-row') {
+              // 表格：检查是否是新的表格（当前一行不是表格的最后一行）
+              const nextItem = s.content[idx + 1]
+              const isLastRow = !nextItem || nextItem.type !== 'table-row'
+
+              if (!inTable) {
+                // 第一个表格行，作为表头
+                contentText += `${idMarker} | ${item.data.join(' | ')} |\n`
+                contentText += `${' '.repeat(idMarker.length)}| ${item.data.map(() => '---').join(' | ')} |\n`
+              } else {
+                contentText += `${idMarker} | ${item.data.join(' | ')} |\n`
+              }
+              inTable = !isLastRow
+            } else if (item.type === 'image') {
+              contentText += `${idMarker} ${item.text}\n`
+              inTable = false
             }
-            return ''
-          }).join('\n')
+          })
+
           return {
             index: s.index,
             title: s.title,
             level: s.level,
-            content: contentText,
+            content: contentText.trim(),
             startLine: s.startLine,
             endLine: s.endLine || s.startLine
           }
@@ -536,6 +555,39 @@ export const useAppStore = defineStore('app', {
     // 设置切片层级
     setSliceLevel(level) {
       this.sliceLevel = level
+    },
+
+    // ========== 项目管理相关 ==========
+
+    // 加载所有项目
+    loadProjects() {
+      this.projects = getAllProjects()
+    },
+
+    // 创建项目
+    createProject(projectData) {
+      const saved = saveProject(projectData)
+      this.loadProjects()
+      return saved
+    },
+
+    // 选择项目
+    selectProject(projectId) {
+      this.currentProjectId = projectId
+    },
+
+    // 删除项目
+    deleteProject(projectId) {
+      deleteProject(projectId)
+      this.loadProjects()
+      if (this.currentProjectId === projectId) {
+        this.currentProjectId = null
+      }
+    },
+
+    // 设置当前项目ID
+    setCurrentProjectId(projectId) {
+      this.currentProjectId = projectId
     }
   }
 })
