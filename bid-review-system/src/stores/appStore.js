@@ -7,7 +7,8 @@ export const useAppStore = defineStore('app', {
     requirementText: '',
 
     // 投标文件切片
-    bidSlices: [],  // 切片内容数组
+    bidSlices: [],  // 切片内容数组 [{index, title, level, content, startLine, endLine}]
+    sliceMetadata: [],  // 切片元数据 [{index, title, level, startLine, endLine}]
     contextText: '',  // 单个文本输入（保留兼容性）
 
     // 任务列表
@@ -27,7 +28,15 @@ export const useAppStore = defineStore('app', {
     // 模版功能
     templateDrawerOpen: false,           // 模版库抽屉开关
     currentEditingTemplate: null,        // 当前编辑的模版
-    appliedTemplateHistory: []           // 应用历史（用于撤销）
+    appliedTemplateHistory: [],           // 应用历史（用于撤销）
+
+    // 新布局状态
+    currentTab: 'upload',               // 当前Tab
+    wordDocument: null,                  // Word文档文件对象
+    highlightLine: null,                 // 高亮行号
+    previewMode: 'original',             // 预览模式 (original/slice)
+    projectName: '',                     // 项目名称
+    sliceLevel: 0                        // 切片层级
   }),
 
   getters: {
@@ -65,6 +74,22 @@ export const useAppStore = defineStore('app', {
     // 是否可以撤销模版应用
     canUndoTemplateApplication: (state) => {
       return state.appliedTemplateHistory.length > 0
+    },
+
+    // 当前Tab对应的组件
+    currentTabComponent: (state) => {
+      const tabMap = {
+        'upload': 'UploadTab',
+        'create-task': 'CreateTaskTab',
+        'task-list': 'TaskListTab',
+        'review-result': 'ReviewResultTab'
+      }
+      return tabMap[state.currentTab] || 'UploadTab'
+    },
+
+    // 是否为Word预览模式
+    isWordPreviewMode: (state) => {
+      return state.wordDocument !== null
     }
   },
 
@@ -271,16 +296,25 @@ export const useAppStore = defineStore('app', {
 
         const reviews = response.data?.slices_reviews || []
 
+        // 为每个切片审核结果注入行号信息，创建新数组确保引用正确
+        const reviewsWithLineNumbers = reviews.map((review, index) => ({
+          ...review,
+          lineNumber: this.sliceMetadata[index]?.startLine || null,
+          sliceTitle: this.sliceMetadata[index]?.title || '',
+          level: this.sliceMetadata[index]?.level || 0
+        }))
+
         // 调用 generate-conclusion 生成最终结论
         const conclusionResponse = await generateConclusion({
           task,
-          reviews
+          reviews: reviewsWithLineNumbers
         })
 
         // 更新任务
         this.updateTask(taskId, {
           review: {
             ...response.data,
+            slices_reviews: reviewsWithLineNumbers,
             conclusion: conclusionResponse.data?.conclusion || '待确认',
             reason: conclusionResponse.data?.reason || '',
             evidence: conclusionResponse.data?.evidence || '待补充',
@@ -314,6 +348,86 @@ export const useAppStore = defineStore('app', {
           message: error.message || '无法连接到服务器'
         }
         return this.apiStatus
+      }
+    },
+
+    // 切片文档
+    async sliceDocument(file, maxLevel = 0) {
+      if (!file) {
+        throw new Error('文件不能为空')
+      }
+
+      this.setLoading(true)
+      this.clearError()
+
+      try {
+        const formData = new FormData()
+        formData.append('file', file)
+        formData.append('max_level', maxLevel)
+
+        const response = await fetch('http://localhost:8888/document/slice', {
+          method: 'POST',
+          body: formData
+        })
+
+        if (!response.ok) {
+          throw new Error('切片失败')
+        }
+
+        const result = await response.json()
+
+        if (result.code !== 200) {
+          throw new Error(result.message || '切片失败')
+        }
+
+        const { slices } = result.data
+
+        // 转换切片数据为 bidSlices 格式
+        this.sliceMetadata = slices.map(s => ({
+          index: s.index,
+          title: s.title,
+          level: s.level,
+          startLine: s.startLine,
+          endLine: s.endLine || s.startLine
+        }))
+
+        // 转换内容为纯文本
+        this.bidSlices = slices.map(s => {
+          const contentText = s.content.map(item => {
+            if (item.type === 'heading') {
+              return ' '.repeat(item.level - 1) + '# ' + item.text
+            } else if (item.type === 'paragraph') {
+              return item.text
+            } else if (item.type === 'table') {
+              const header = item.data[0]
+              const rows = item.data.slice(1)
+              let md = '| ' + header.join(' | ') + ' |\n'
+              md += '| ' + header.map(() => '---').join(' | ') + ' |\n'
+              rows.forEach(row => {
+                md += '| ' + row.join(' | ') + ' |\n'
+              })
+              return md
+            }
+            return ''
+          }).join('\n')
+          return {
+            index: s.index,
+            title: s.title,
+            level: s.level,
+            content: contentText,
+            startLine: s.startLine,
+            endLine: s.endLine || s.startLine
+          }
+        })
+
+        console.log('文档切片完成:', this.sliceMetadata.length, '个切片')
+        return this.bidSlices
+      } catch (error) {
+        console.error('文档切片失败:', error)
+        this.setError(error.message || '文档切片失败')
+        throw error
+      } finally {
+        this.setLoading(false)
       }
     },
 
@@ -384,6 +498,44 @@ export const useAppStore = defineStore('app', {
     // 清空应用历史
     clearTemplateHistory() {
       this.appliedTemplateHistory = []
+    },
+
+    // ========== 新布局相关 ==========
+
+    // 设置当前Tab
+    setCurrentTab(tabId) {
+      const validTabs = ['upload', 'create-task', 'task-list', 'review-result']
+      if (validTabs.includes(tabId)) {
+        this.currentTab = tabId
+      }
+    },
+
+    // 设置Word文档
+    setWordDocument(file) {
+      this.wordDocument = file
+    },
+
+    // 设置高亮行
+    setHighlightLine(lineNumber) {
+      this.highlightLine = lineNumber
+    },
+
+    // 设置预览模式
+    setPreviewMode(mode) {
+      const validModes = ['original', 'slice']
+      if (validModes.includes(mode)) {
+        this.previewMode = mode
+      }
+    },
+
+    // 设置项目名称
+    setProjectName(name) {
+      this.projectName = name
+    },
+
+    // 设置切片层级
+    setSliceLevel(level) {
+      this.sliceLevel = level
     }
   }
 })
