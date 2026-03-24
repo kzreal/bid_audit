@@ -1010,9 +1010,21 @@ def get_preview_with_bookmarks():
             logger.info(f"已有书签ID: {existing_ids}, 起始ID: {start_id}")
 
             # 遍历所有块级元素，写入书签 line_1, line_2, ...
+            # 注意：此逻辑必须与 slice_document 中的遍历逻辑完全一致
             offset = 0
             for block in iter_block_items(doc):
                 if isinstance(block, Paragraph):
+                    text = block.text.strip()
+                    images = extract_paragraph_images(block, doc)
+
+                    # 跳过空段落（与切片逻辑一致）
+                    if not text and not images:
+                        continue
+
+                    # 跳过目录
+                    if any(kw in text for kw in ['目录', '目  录', 'CONTENTS']):
+                        continue
+
                     # 段落：添加书签
                     add_bookmark(block, start_id + offset, f'line_{offset + 1}')
                     offset += 1
@@ -1021,6 +1033,10 @@ def get_preview_with_bookmarks():
                     for row in block.rows:
                         # 取第一个单元格的第一个段落作为书签锚点
                         if row.cells and row.cells[0].paragraphs:
+                            cell_text = row.cells[0].text.strip()
+                            # 跳过空行
+                            if not cell_text:
+                                continue
                             add_bookmark(row.cells[0].paragraphs[0], start_id + offset, f'line_{offset + 1}')
                             offset += 1
 

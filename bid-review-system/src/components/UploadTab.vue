@@ -346,6 +346,13 @@ const selectFile = (file) => {
     showMessage('请上传 .docx 格式的文件', 'error')
     return
   }
+
+  // 自动将文件名（去掉扩展名）设为项目名称
+  const fileNameWithoutExt = file.name.replace(/\.docx$/i, '')
+  if (!projectName.value.trim() && fileNameWithoutExt) {
+    projectName.value = fileNameWithoutExt
+  }
+
   uploadedFile.value = file
   store.setWordDocument(file)
   parsed.value = false

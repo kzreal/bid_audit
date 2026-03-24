@@ -525,23 +525,50 @@ const findBookmarkElement = (container, lineNumber) => {
   // 尝试多种可能的 DOM 结构（按优先级排序）
   // 1. 带 id 的元素
   let element = container.querySelector(`#${name}`)
-  if (element) return element
+  if (element) {
+    console.log(`findBookmarkElement: found by id #${name}`, element.tagName)
+    return element
+  }
 
   // 2. 带 name 属性的元素（如 <a name="line_1">）
   element = container.querySelector(`[name="${name}"]`)
-  if (element) return element
+  if (element) {
+    console.log(`findBookmarkElement: found by name [name="${name}"]`, element.tagName)
+    return element
+  }
 
   // 3. 带 data-bookmark 属性
   element = container.querySelector(`[data-bookmark="${name}"]`)
-  if (element) return element
+  if (element) {
+    console.log(`findBookmarkElement: found by data-bookmark`, element.tagName)
+    return element
+  }
 
   // 4. 带 data-line 属性（兼容原有逻辑）
   element = container.querySelector(`[data-line="${lineNumber}"]`)
-  if (element) return element
+  if (element) {
+    console.log(`findBookmarkElement: found by data-line="${lineNumber}"`, element.tagName)
+    return element
+  }
 
   // 5. 带 data-element-id 属性
   element = container.querySelector(`[data-element-id="${lineNumber}"]`)
-  if (element) return element
+  if (element) {
+    console.log(`findBookmarkElement: found by data-element-id="${lineNumber}"`, element.tagName)
+    return element
+  }
+
+  // 调试：打印附近书签的情况
+  console.log(`findBookmarkElement: NOT FOUND for line ${lineNumber}`)
+  const nearby = []
+  for (let i = Math.max(1, lineNumber - 3); i <= lineNumber + 3; i++) {
+    const n = `line_${i}`
+    const el = container.querySelector(`#${n}, [name="${n}"], [data-bookmark="${n}"], [data-line="${i}"], [data-element-id="${i}"]`)
+    if (el) {
+      nearby.push({ line: i, tag: el.tagName, text: el.textContent?.substring(0, 30) })
+    }
+  }
+  console.log('nearby elements:', nearby)
 
   return null
 }
@@ -576,39 +603,27 @@ const scrollToLine = (lineNumber) => {
   if (element) {
     element.scrollIntoView({ behavior: 'smooth', block: 'center' })
 
+    console.log('scrollToLine: found element', element.tagName, 'id:', element.id, 'offsetHeight:', element.offsetHeight, 'textContent:', element.textContent?.substring(0, 30))
+
     // 添加高亮效果
     // 书签元素可能是空元素，需要找到正确的可见元素
     let highlightElement = element
 
-    console.log('scrollToLine: found element', element.tagName, 'id:', element.id, 'offsetHeight:', element.offsetHeight, 'textContent:', element.textContent?.substring(0, 30))
-
-    // 如果书签元素不可见或没有内容，尝试找到其所属的块级父元素
-    if (highlightElement.offsetHeight === 0 || !highlightElement.textContent?.trim()) {
-      // 向上查找父级块级元素
-      const blockTags = ['P', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'TR', 'LI', 'DIV', 'SECTION', 'ARTICLE']
-      let parent = highlightElement.parentElement
-      while (parent && parent !== container) {
-        if (blockTags.includes(parent.tagName)) {
-          highlightElement = parent
-          console.log('scrollToLine: found parent block element', parent.tagName, 'offsetHeight:', parent.offsetHeight)
-          break
-        }
-        parent = parent.parentElement
+    // 向上查找父级块级元素
+    const blockTags = ['P', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'TR', 'LI', 'DIV', 'SECTION', 'ARTICLE']
+    let parent = element.parentElement
+    while (parent && parent !== container) {
+      if (blockTags.includes(parent.tagName)) {
+        highlightElement = parent
+        console.log('scrollToLine: found parent block element', parent.tagName, 'offsetHeight:', parent.offsetHeight, 'text:', parent.textContent?.substring(0, 50))
+        break
       }
-
-      // 如果还没找到可见元素，尝试找相邻元素
-      if (highlightElement.offsetHeight === 0) {
-        const sibling = highlightElement.nextElementSibling || highlightElement.previousElementSibling
-        if (sibling) {
-          highlightElement = sibling
-          console.log('scrollToLine: using sibling element', sibling.tagName, 'offsetHeight:', sibling.offsetHeight)
-        }
-      }
+      parent = parent.parentElement
     }
 
     // 对找到的元素添加高亮
     if (highlightElement && highlightElement.offsetHeight > 0) {
-      console.log('scrollToLine: highlighting element', highlightElement.tagName)
+      console.log('scrollToLine: highlighting element', highlightElement.tagName, 'text:', highlightElement.textContent?.substring(0, 50))
       highlightElement.classList.add('highlight-line')
       setTimeout(() => {
         highlightElement.classList.remove('highlight-line')
