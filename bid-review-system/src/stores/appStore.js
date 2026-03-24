@@ -203,9 +203,9 @@ export const useAppStore = defineStore('app', {
         })
 
         // 处理后端返回的任务数据，确保有 title 和 description 字段
-        const tasksWithTime = response.data.map(task => ({
-          id: task.id || Date.now() + Math.random(),
-          title: task.task || task.content || `任务 ${task.id}`,
+        const tasksWithTime = response.data.map((task, index) => ({
+          id: Date.now() + Math.random() + index, // 始终生成唯一 id，避免后端返回重复 id 的问题
+          title: task.task || task.content || `任务 ${index + 1}`,
           description: '',  // 留空，避免重复显示
           subtasks: task.subtasks || [],
           createdAt: new Date(),
@@ -376,7 +376,7 @@ export const useAppStore = defineStore('app', {
         formData.append('file', file)
         formData.append('max_level', maxLevel)
 
-        const response = await fetch('http://localhost:8888/document/slice', {
+        const response = await fetch('/document/slice', {
           method: 'POST',
           body: formData
         })
