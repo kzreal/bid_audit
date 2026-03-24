@@ -137,8 +137,27 @@
 
           <!-- 切片详情（如果有） -->
           <div v-if="task.review?.slices_reviews?.length > 0" class="mt-3 pl-8">
-            <p class="text-xs text-gray-500 mb-2">切片详情 ({{ task.review.slices_reviews.length }})</p>
-            <div class="space-y-2">
+            <button
+              @click="toggleSliceDetails(task.id)"
+              class="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700 transition-colors"
+            >
+              <svg
+                class="w-4 h-4 transition-transform duration-200"
+                :class="{ 'rotate-90': expandedTasks.has(task.id) }"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+              </svg>
+              切片详情 ({{ task.review.slices_reviews.length }})
+            </button>
+
+            <!-- 切片详情内容 -->
+            <div
+              v-show="expandedTasks.has(task.id)"
+              class="mt-2 space-y-2"
+            >
               <div
                 v-for="(slice, sliceIndex) in task.review.slices_reviews"
                 :key="sliceIndex"
@@ -177,6 +196,7 @@ import { useAppStore } from '../stores/appStore'
 
 const store = useAppStore()
 const sortByFailedFirst = ref(true)
+const expandedTasks = ref(new Set()) // 记录哪些任务的切片详情是展开的
 
 const emit = defineEmits(['jump-to-line'])
 
@@ -210,6 +230,16 @@ const handleJumpToLine = (lineNumber) => {
     emit('jump-to-line', lineNumber)
   }
 }
+
+const toggleSliceDetails = (taskId) => {
+  if (expandedTasks.value.has(taskId)) {
+    expandedTasks.value.delete(taskId)
+  } else {
+    expandedTasks.value.add(taskId)
+  }
+  // 触发响应式更新
+  expandedTasks.value = new Set(expandedTasks.value)
+}
 </script>
 
 <style scoped>
@@ -222,5 +252,9 @@ const handleJumpToLine = (lineNumber) => {
 .result-list-leave-to {
   opacity: 0;
   transform: translateY(10px);
+}
+
+.rotate-90 {
+  transform: rotate(90deg);
 }
 </style>
