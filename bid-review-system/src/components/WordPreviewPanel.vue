@@ -135,6 +135,10 @@ const props = defineProps({
     type: [File, null],
     default: null
   },
+  wordDocumentWithBookmarks: {
+    type: [File, null],
+    default: null
+  },
   highlightLine: {
     type: [Number, null],
     default: null
@@ -171,6 +175,15 @@ watch(() => props.wordDocument, async (newDoc) => {
     await renderDocument(newDoc)
   }
 }, { immediate: true })
+
+// 监听带书签文档变化，当准备好时重新渲染
+watch(() => props.wordDocumentWithBookmarks, async (newDoc) => {
+  if (newDoc && props.wordDocument) {
+    console.log('Word document with bookmarks ready, re-rendering...')
+    await nextTick()
+    await renderDocument(props.wordDocument)
+  }
+})
 
 // 监听高亮行变化
 watch(() => props.highlightLine, (newLine) => {
@@ -216,7 +229,9 @@ const renderDocument = async (file) => {
   console.log('Starting to render document:', file.name)
   try {
     // 使用 docx-preview 渲染
-    await renderAsync(file.arrayBuffer(), previewRef.value, undefined, {
+    // 优先使用带书签的文档进行渲染
+    const docToRender = props.wordDocumentWithBookmarks || file
+    await renderAsync(docToRender.arrayBuffer(), previewRef.value, undefined, {
       className: 'docx-preview',
       inWrapper: true,
       ignoreWidth: false,
@@ -230,7 +245,8 @@ const renderDocument = async (file) => {
       renderFootnotes: true,
       renderChanges: false,
       renderTrackedChanges: false,
-      renderComments: false
+      renderComments: false,
+      experimental: true  // 启用实验特性以获得更好的书签支持
     })
 
     console.log('RenderAsync completed, preview content:', previewRef.value.innerHTML.length, 'chars')
@@ -496,6 +512,40 @@ const injectLineNumbersForSlice = (container) => {
   console.log('Slice total lines:', displayLineNumber, 'Line number map size:', lineNumberMap.size)
 }
 
+/**
+ * 在容器中查找书签对应的 DOM 元素
+ * docx-preview 渲染书签时会生成特定结构的 DOM
+ * @param {HTMLElement} container - 预览容器
+ * @param {number} lineNumber - 行号
+ * @returns {HTMLElement|null}
+ */
+const findBookmarkElement = (container, lineNumber) => {
+  const name = `line_${lineNumber}`
+
+  // 尝试多种可能的 DOM 结构（按优先级排序）
+  // 1. 带 id 的元素
+  let element = container.querySelector(`#${name}`)
+  if (element) return element
+
+  // 2. 带 name 属性的元素（如 <a name="line_1">）
+  element = container.querySelector(`[name="${name}"]`)
+  if (element) return element
+
+  // 3. 带 data-bookmark 属性
+  element = container.querySelector(`[data-bookmark="${name}"]`)
+  if (element) return element
+
+  // 4. 带 data-line 属性（兼容原有逻辑）
+  element = container.querySelector(`[data-line="${lineNumber}"]`)
+  if (element) return element
+
+  // 5. 带 data-element-id 属性
+  element = container.querySelector(`[data-element-id="${lineNumber}"]`)
+  if (element) return element
+
+  return null
+}
+
 const scrollToLine = (lineNumber) => {
   // 根据预览模式选择目标容器
   const container = previewMode.value === 'slice' ? slicePreviewRef.value : previewRef.value
@@ -503,25 +553,69 @@ const scrollToLine = (lineNumber) => {
 
   let element = null
 
-  if (previewMode.value === 'slice') {
-    // 切片预览模式：优先使用 data-element-id（原文行号）查找，再使用 data-line（切片内行号）
-    element = container.querySelector(`[data-element-id="${lineNumber}"]`)
-    if (!element) {
+  // 优先使用书签查找（带书签的文档）
+  if (previewMode.value !== 'slice') {
+    // 原文预览模式：优先使用书签查找
+    element = findBookmarkElement(container, lineNumber)
+  }
+
+  // 如果书签查找失败，尝试原有的 data-line/data-element-id 查找
+  if (!element) {
+    if (previewMode.value === 'slice') {
+      // 切片预览模式：优先使用 data-element-id（原文行号）查找，再使用 data-line（切片内行号）
+      element = container.querySelector(`[data-element-id="${lineNumber}"]`)
+      if (!element) {
+        element = container.querySelector(`[data-line="${lineNumber}"]`)
+      }
+    } else {
+      // 原文预览模式：直接使用 data-line 查找
       element = container.querySelector(`[data-line="${lineNumber}"]`)
     }
-  } else {
-    // 原文预览模式：直接使用 data-line 查找
-    element = container.querySelector(`[data-line="${lineNumber}"]`)
   }
 
   if (element) {
     element.scrollIntoView({ behavior: 'smooth', block: 'center' })
 
     // 添加高亮效果
-    element.classList.add('highlight-line')
-    setTimeout(() => {
-      element.classList.remove('highlight-line')
-    }, 3000)
+    // 书签元素可能是空元素，需要找到正确的可见元素
+    let highlightElement = element
+
+    console.log('scrollToLine: found element', element.tagName, 'id:', element.id, 'offsetHeight:', element.offsetHeight, 'textContent:', element.textContent?.substring(0, 30))
+
+    // 如果书签元素不可见或没有内容，尝试找到其所属的块级父元素
+    if (highlightElement.offsetHeight === 0 || !highlightElement.textContent?.trim()) {
+      // 向上查找父级块级元素
+      const blockTags = ['P', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'TR', 'LI', 'DIV', 'SECTION', 'ARTICLE']
+      let parent = highlightElement.parentElement
+      while (parent && parent !== container) {
+        if (blockTags.includes(parent.tagName)) {
+          highlightElement = parent
+          console.log('scrollToLine: found parent block element', parent.tagName, 'offsetHeight:', parent.offsetHeight)
+          break
+        }
+        parent = parent.parentElement
+      }
+
+      // 如果还没找到可见元素，尝试找相邻元素
+      if (highlightElement.offsetHeight === 0) {
+        const sibling = highlightElement.nextElementSibling || highlightElement.previousElementSibling
+        if (sibling) {
+          highlightElement = sibling
+          console.log('scrollToLine: using sibling element', sibling.tagName, 'offsetHeight:', sibling.offsetHeight)
+        }
+      }
+    }
+
+    // 对找到的元素添加高亮
+    if (highlightElement && highlightElement.offsetHeight > 0) {
+      console.log('scrollToLine: highlighting element', highlightElement.tagName)
+      highlightElement.classList.add('highlight-line')
+      setTimeout(() => {
+        highlightElement.classList.remove('highlight-line')
+      }, 3000)
+    } else {
+      console.log('scrollToLine: could not find visible element to highlight')
+    }
   } else {
     console.log('scrollToLine: element not found for line', lineNumber, 'in mode', previewMode.value)
   }

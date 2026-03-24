@@ -12,6 +12,7 @@ import tempfile
 import base64
 import requests
 from pathlib import Path
+from io import BytesIO
 
 # 配置日志
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -24,6 +25,8 @@ from hiagent_client import TaskCreator, TaskAuditor, SummaryAgent
 from docx import Document
 from docx.oxml.table import CT_Tbl
 from docx.oxml.text.paragraph import CT_P
+from docx.oxml.ns import qn
+from docx.oxml import OxmlElement
 from docx.table import Table
 from docx.text.paragraph import Paragraph
 
@@ -568,6 +571,24 @@ def summarize_reviews():
 
 # ========== 文档切片功能 ==========
 
+def add_bookmark(paragraph, bookmark_id, bookmark_name):
+    """
+    在段落开头插入 Word 书签
+    @param paragraph: 段落对象
+    @param bookmark_id: 书签ID（必须唯一）
+    @param bookmark_name: 书签名称（如 line_1, line_2）
+    """
+    bookmark_start = OxmlElement('w:bookmarkStart')
+    bookmark_start.set(qn('w:id'), str(bookmark_id))
+    bookmark_start.set(qn('w:name'), bookmark_name)
+
+    bookmark_end = OxmlElement('w:bookmarkEnd')
+    bookmark_end.set(qn('w:id'), str(bookmark_id))
+
+    paragraph._p.insert(0, bookmark_start)
+    paragraph._p.append(bookmark_end)
+
+
 def iter_block_items(parent):
     """遍历文档中的所有块元素（段落和表格），保持原始顺序"""
     if hasattr(parent, 'element'):
@@ -946,6 +967,95 @@ def get_slice_content(slice_index):
         'code': 400,
         'message': '请先调用 /document/slice 上传文档'
     }), 400
+
+
+@app.route('/document/preview-with-bookmarks', methods=['POST'])
+def get_preview_with_bookmarks():
+    """
+    生成带书签的 docx 预览文件
+    书签名称格式: line_1, line_2, line_3...
+    与切片编号完全一致
+    """
+    try:
+        # 检查是否有文件
+        if 'file' not in request.files:
+            return jsonify({'code': 400, 'message': '没有上传文件'}), 400
+
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({'code': 400, 'message': '文件名为空'}), 400
+
+        print(f"生成带书签预览: {file.filename}")
+
+        # 保存上传的文件到临时目录
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.docx') as tmp:
+            file.save(tmp.name)
+            tmp_path = tmp.name
+
+        try:
+            # 使用 python-docx 加载文档
+            doc = Document(tmp_path)
+
+            # 获取已有的书签 ID，避免冲突
+            existing_ids = []
+            try:
+                for el in doc.element.body.iter(qn('w:bookmarkStart')):
+                    bookmark_id = el.get(qn('w:id'))
+                    if bookmark_id and bookmark_id.isdigit():
+                        existing_ids.append(int(bookmark_id))
+            except Exception as e:
+                logger.warning(f"获取已有书签ID失败: {e}")
+
+            start_id = max(existing_ids, default=0) + 1
+            logger.info(f"已有书签ID: {existing_ids}, 起始ID: {start_id}")
+
+            # 遍历所有块级元素，写入书签 line_1, line_2, ...
+            offset = 0
+            for block in iter_block_items(doc):
+                if isinstance(block, Paragraph):
+                    # 段落：添加书签
+                    add_bookmark(block, start_id + offset, f'line_{offset + 1}')
+                    offset += 1
+                elif isinstance(block, Table):
+                    # 表格：每个表格行添加书签
+                    for row in block.rows:
+                        # 取第一个单元格的第一个段落作为书签锚点
+                        if row.cells and row.cells[0].paragraphs:
+                            add_bookmark(row.cells[0].paragraphs[0], start_id + offset, f'line_{offset + 1}')
+                            offset += 1
+
+            # 保存带书签的文档
+            output_buffer = BytesIO()
+            doc.save(output_buffer)
+            output_buffer.seek(0)
+
+            # 返回 base64 编码的文件数据
+            file_data = base64.b64encode(output_buffer.read()).decode('utf-8')
+
+            print(f"书签写入完成，共 {offset} 个书签")
+
+            return jsonify({
+                'code': 200,
+                'message': '生成成功',
+                'data': {
+                    'fileData': file_data,
+                    'bookmarkCount': offset,
+                    'filename': file.filename
+                }
+            })
+        finally:
+            # 删除临时文件
+            Path(tmp_path).unlink(missing_ok=True)
+
+    except Exception as e:
+        import traceback
+        error_msg = f"生成带书签预览失败：{str(e)}\n{traceback.format_exc()}"
+        print(error_msg)
+        return jsonify({
+            'code': 500,
+            'message': '生成失败',
+            'error': str(e)
+        }), 500
 
 
 # ========== 原有接口 ==========

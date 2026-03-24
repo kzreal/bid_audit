@@ -123,16 +123,19 @@
           </div>
 
           <!-- 证据/来源 -->
-          <div v-if="task.review?.bidSource && !isNaN(parseInt(task.review.bidSource))" class="pl-8">
-            <button
-              @click="handleJumpToLine(parseInt(task.review.bidSource))"
-              class="text-xs text-vercel-blue hover:text-vercel-blue-hover font-medium transition-colors flex items-center gap-1"
-            >
-              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path>
-              </svg>
-              查看来源
-            </button>
+          <div v-if="task.review?.bidSource && hasValidLineNumbers(task.review.bidSource)" class="pl-8">
+            <div class="flex items-center gap-1 flex-wrap">
+              <span class="text-xs text-gray-500">查看来源：</span>
+              <button
+                v-for="(range, idx) in parseLineRanges(task.review.bidSource)"
+                :key="idx"
+                @click="handleJumpToLine(range.start)"
+                class="text-xs text-vercel-blue hover:text-vercel-blue-hover font-medium transition-colors underline"
+                :class="{ 'ml-1': idx > 0 }"
+              >
+                {{ formatRangeDisplay(range) }}
+              </button>
+            </div>
           </div>
 
           <!-- 切片详情（如果有） -->
@@ -163,22 +166,18 @@
                 :key="sliceIndex"
                 class="p-2 bg-gray-50 rounded text-xs"
               >
-                <div class="flex items-center justify-between mb-1">
+                <div class="flex items-center justify-between mb-1 flex-wrap gap-1">
                   <span class="text-gray-600 font-medium">切片 {{ sliceIndex + 1 }}<template v-if="slice.sliceTitle"> - {{ slice.sliceTitle }}</template></span>
-                  <button
-                    v-if="slice.lineNumber"
-                    @click="handleJumpToLine(slice.lineNumber)"
-                    class="text-vercel-blue hover:text-vercel-blue-hover transition-colors"
-                  >
-                    第 {{ slice.lineNumber }} 行
-                  </button>
-                  <button
-                    v-else-if="task.review?.bidSource && !isNaN(parseInt(task.review.bidSource))"
-                    @click="handleJumpToLine(parseInt(task.review.bidSource))"
-                    class="text-vercel-blue hover:text-vercel-blue-hover transition-colors"
-                  >
-                    查看来源
-                  </button>
+                  <div v-if="task.review?.bidSource && hasValidLineNumbers(task.review.bidSource)" class="flex items-center gap-1 flex-wrap">
+                    <button
+                      v-for="(range, idx) in parseLineRanges(task.review.bidSource)"
+                      :key="idx"
+                      @click="handleJumpToLine(range.start)"
+                      class="text-vercel-blue hover:text-vercel-blue-hover transition-colors underline text-xs"
+                    >
+                      {{ formatRangeDisplay(range) }}
+                    </button>
+                  </div>
                 </div>
                 <p class="text-gray-600 leading-relaxed">{{ slice.suggestion }}</p>
               </div>
@@ -229,6 +228,85 @@ const handleJumpToLine = (lineNumber) => {
   if (lineNumber) {
     emit('jump-to-line', lineNumber)
   }
+}
+
+// 从 bidSource 中提取第一个行号用于跳转
+const handleJumpToLineFromSource = (bidSource) => {
+  if (!bidSource) return
+  const firstLine = getFirstLineNumber(bidSource)
+  if (firstLine) {
+    emit('jump-to-line', firstLine)
+  }
+}
+
+// 检查 bidSource 是否包含有效行号
+const hasValidLineNumbers = (bidSource) => {
+  if (!bidSource || bidSource === '待补充') return false
+  // 检查是否包含数字（可能有多个，用逗号/中文逗号分隔）
+  const parts = bidSource.toString().split(/[,，]/)
+  return parts.some(part => {
+    const trimmed = part.trim()
+    // 单个数字或范围（如 34 或 59-74）
+    return /^\d+$/.test(trimmed) || /^\d+\s*[-—–]\s*\d+$/.test(trimmed)
+  })
+}
+
+// 解析 bidSource 为行号范围数组
+const parseLineRanges = (bidSource) => {
+  if (!bidSource) return []
+  const ranges = []
+  const parts = bidSource.toString().split(/[,，]/)
+  for (const part of parts) {
+    const trimmed = part.trim()
+    if (!trimmed) continue
+
+    // 单个数字
+    const singleMatch = trimmed.match(/^(\d+)$/)
+    if (singleMatch) {
+      const num = parseInt(singleMatch[1])
+      ranges.push({ start: num, end: num })
+      continue
+    }
+
+    // 范围格式（如 59-74）
+    const rangeMatch = trimmed.match(/^(\d+)\s*[-—–]\s*(\d+)$/)
+    if (rangeMatch) {
+      ranges.push({
+        start: parseInt(rangeMatch[1]),
+        end: parseInt(rangeMatch[2])
+      })
+    }
+  }
+  return ranges
+}
+
+// 格式化范围显示（如 {start: 34, end: 34} -> "34", {start: 59, end: 74} -> "59-74"）
+const formatRangeDisplay = (range) => {
+  if (!range) return ''
+  if (range.start === range.end) {
+    return `${range.start}`
+  }
+  return `${range.start}-${range.end}`
+}
+
+// 获取 bidSource 中的第一个行号
+const getFirstLineNumber = (bidSource) => {
+  if (!bidSource) return null
+  const parts = bidSource.toString().split(/[,，]/)
+  for (const part of parts) {
+    const trimmed = part.trim()
+    // 单个数字
+    const singleMatch = trimmed.match(/^(\d+)$/)
+    if (singleMatch) {
+      return parseInt(singleMatch[1])
+    }
+    // 范围格式（如 59-74）
+    const rangeMatch = trimmed.match(/^(\d+)\s*[-—–]\s*\d+$/)
+    if (rangeMatch) {
+      return parseInt(rangeMatch[1])
+    }
+  }
+  return null
 }
 
 const toggleSliceDetails = (taskId) => {

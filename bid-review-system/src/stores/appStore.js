@@ -34,6 +34,7 @@ export const useAppStore = defineStore('app', {
     // 新布局状态
     currentTab: 'upload',               // 当前Tab
     wordDocument: null,                  // Word文档文件对象
+    wordDocumentWithBookmarks: null,     // 带书签的Word文档文件对象
     highlightLine: null,                 // 高亮行号
     previewMode: 'original',             // 预览模式 (original/slice)
     projectName: '',                     // 项目名称
@@ -362,6 +363,55 @@ export const useAppStore = defineStore('app', {
       }
     },
 
+    // 获取带书签的预览文档
+    async fetchPreviewWithBookmarks(file) {
+      if (!file) {
+        throw new Error('文件不能为空')
+      }
+
+      try {
+        const formData = new FormData()
+        formData.append('file', file)
+
+        const response = await fetch('/document/preview-with-bookmarks', {
+          method: 'POST',
+          body: formData
+        })
+
+        if (!response.ok) {
+          throw new Error('获取预览失败')
+        }
+
+        const result = await response.json()
+
+        if (result.code !== 200) {
+          throw new Error(result.message || '获取预览失败')
+        }
+
+        const { fileData, filename } = result.data
+
+        // 将 base64 转换为 File 对象
+        const byteCharacters = atob(fileData)
+        const byteNumbers = new Array(byteCharacters.length)
+        for (let i = 0; i < byteCharacters.length; i++) {
+          byteNumbers[i] = byteCharacters.charCodeAt(i)
+        }
+        const byteArray = new Uint8Array(byteNumbers)
+        const blob = new Blob([byteArray], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' })
+        const bookmarkedFile = new File([blob], filename || 'preview.docx', {
+          type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        })
+
+        this.wordDocumentWithBookmarks = bookmarkedFile
+        console.log('带书签预览文档已加载:', bookmarkedFile.name)
+        return bookmarkedFile
+      } catch (error) {
+        console.error('获取带书签预览失败:', error)
+        this.setError(error.message || '获取带书签预览失败')
+        throw error
+      }
+    },
+
     // 切片文档
     async sliceDocument(file, maxLevel = 0) {
       if (!file) {
@@ -446,6 +496,19 @@ export const useAppStore = defineStore('app', {
         })
 
         console.log('文档切片完成:', this.sliceMetadata.length, '个切片')
+
+        // 切片完成后，获取带书签的预览文档
+        // 注意：这里使用传入的 file 参数，需要先切片获取 line_no 才能写入书签
+        // 但书签需要在切片时写入，所以这里单独调用预览接口
+        // 由于文件已上传，我们使用 wordDocument 字段
+        if (this.wordDocument) {
+          try {
+            await this.fetchPreviewWithBookmarks(this.wordDocument)
+          } catch (e) {
+            console.warn('获取带书签预览失败，将使用原始文档:', e)
+          }
+        }
+
         return this.bidSlices
       } catch (error) {
         console.error('文档切片失败:', error)

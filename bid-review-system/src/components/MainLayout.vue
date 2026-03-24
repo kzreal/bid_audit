@@ -38,6 +38,7 @@
       <word-preview-panel
         ref="wordPreviewRef"
         :word-document="store.wordDocument"
+        :word-document-with-bookmarks="store.wordDocumentWithBookmarks"
         :highlight-line="store.highlightLine"
         :slice-metadata="store.sliceMetadata"
         :slice-content="currentSliceContent"
@@ -90,35 +91,17 @@ onMounted(async () => {
 const handleJumpToLine = async (lineNumber) => {
   if (!lineNumber) return
 
-  // 查找包含该行号的切片
-  const sliceMetadata = store.sliceMetadata
-  let targetSliceIndex = -1
-  let targetLineInSlice = 0
+  console.log(`跳转到行号: ${lineNumber}`)
 
-  for (let i = 0; i < sliceMetadata.length; i++) {
-    const slice = sliceMetadata[i]
-    if (lineNumber >= slice.startLine && lineNumber <= slice.endLine) {
-      targetSliceIndex = i
-      targetLineInSlice = lineNumber - slice.startLine + 1
-      break
-    }
-  }
+  // 优先使用原文预览模式进行定位（使用 Word 原生书签）
+  store.setPreviewMode('original')
 
-  // 如果找到了对应切片，切换到切片预览模式并选中该切片
-  if (targetSliceIndex >= 0) {
-    store.setPreviewMode('slice')
-    store.setSelectedSliceIndex(targetSliceIndex)
-    console.log(`跳转到切片 ${targetSliceIndex + 1}，切片内行号 ${targetLineInSlice}`)
+  // 等待预览模式切换和文档渲染完成
+  await nextTick()
+  await new Promise(resolve => requestAnimationFrame(resolve))
 
-    // 等待切片内容渲染完成后，再滚动到目标行
-    await nextTick()
-    if (wordPreviewRef.value) {
-      // 使用切片内行号（targetLineInSlice）进行滚动
-      // scrollToLine 会自动根据切片内容查找对应的元素
-      wordPreviewRef.value.scrollToLine(targetLineInSlice)
-    }
-  } else if (wordPreviewRef.value) {
-    // 如果没找到切片，尝试直接跳转
+  // 使用原文行号直接定位（带书签的 Word 文档会处理书签查找）
+  if (wordPreviewRef.value) {
     wordPreviewRef.value.scrollToLine(lineNumber)
   }
 }
