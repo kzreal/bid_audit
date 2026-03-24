@@ -25,7 +25,7 @@
       />
 
       <!-- Tab内容区 -->
-      <div class="flex-1 overflow-y-auto border-b-8 border-gray-400">
+      <div class="flex-1 overflow-y-auto border-b-8 border-white">
         <upload-tab v-if="store.currentTab === 'upload'" />
         <create-task-tab v-if="store.currentTab === 'create-task'" />
         <task-list-tab v-if="store.currentTab === 'task-list'" />
@@ -34,7 +34,7 @@
     </div>
 
     <!-- 右侧：预览区 60% -->
-    <div class="flex-1 bg-white flex flex-col border-b-8 border-gray-400">
+    <div class="flex-1 bg-white flex flex-col border-b-8 border-white">
       <word-preview-panel
         ref="wordPreviewRef"
         :word-document="store.wordDocument"
