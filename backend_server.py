@@ -137,6 +137,9 @@ if LLM_AVAILABLE:
 app = Flask(__name__)
 CORS(app)  # 允许跨域请求
 
+# 设置文件上传大小限制为 2GB
+app.config['MAX_CONTENT_LENGTH'] = 2 * 1024 * 1024 * 1024  # 2GB
+
 # 从环境变量或配置文件读取配置
 def get_config():
     # 首先尝试从本地 .env 文件读取
