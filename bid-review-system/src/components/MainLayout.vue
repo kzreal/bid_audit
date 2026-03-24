@@ -25,7 +25,7 @@
       />
 
       <!-- Tab内容区 -->
-      <div class="flex-1 overflow-y-auto">
+      <div class="flex-1 overflow-y-auto border-b-8 border-gray-400">
         <upload-tab v-if="store.currentTab === 'upload'" />
         <create-task-tab v-if="store.currentTab === 'create-task'" />
         <task-list-tab v-if="store.currentTab === 'task-list'" />
@@ -34,7 +34,7 @@
     </div>
 
     <!-- 右侧：预览区 60% -->
-    <div class="flex-1 bg-white flex flex-col">
+    <div class="flex-1 bg-white flex flex-col border-b-8 border-gray-400">
       <word-preview-panel
         ref="wordPreviewRef"
         :word-document="store.wordDocument"
@@ -48,7 +48,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, nextTick } from 'vue'
 import { useAppStore } from '../stores/appStore'
 import TabNavigator from './TabNavigator.vue'
 import UploadTab from './UploadTab.vue'
@@ -87,7 +87,7 @@ onMounted(async () => {
 })
 
 // 处理高亮跳转
-const handleJumpToLine = (lineNumber) => {
+const handleJumpToLine = async (lineNumber) => {
   if (!lineNumber) return
 
   // 查找包含该行号的切片
@@ -109,6 +109,14 @@ const handleJumpToLine = (lineNumber) => {
     store.setPreviewMode('slice')
     store.setSelectedSliceIndex(targetSliceIndex)
     console.log(`跳转到切片 ${targetSliceIndex + 1}，切片内行号 ${targetLineInSlice}`)
+
+    // 等待切片内容渲染完成后，再滚动到目标行
+    await nextTick()
+    if (wordPreviewRef.value) {
+      // 使用切片内行号（targetLineInSlice）进行滚动
+      // scrollToLine 会自动根据切片内容查找对应的元素
+      wordPreviewRef.value.scrollToLine(targetLineInSlice)
+    }
   } else if (wordPreviewRef.value) {
     // 如果没找到切片，尝试直接跳转
     wordPreviewRef.value.scrollToLine(lineNumber)

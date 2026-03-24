@@ -281,85 +281,82 @@ const fixAnchoredImages = () => {
 const injectLineNumbers = () => {
   if (!previewRef.value) return
 
-  // docx-preview 生成的结构是 .docx-preview > section
-  // 遍历所有元素，按文档顺序编号
-  const sections = previewRef.value.querySelectorAll('section')
+  // docx-preview 生成的结构是 .docx-preview > section.docx-preview > 子元素
+  // 编号规则（与后端 python-docx 完全一致）：
+  //   - 段落（p, h1-h6 等）→ 计为 1 行
+  //   - 表格（table）→ 每个 tr 计为 1 行
+  //   - 其他元素 → 跳过
+
+  const sections = previewRef.value.querySelectorAll('section.docx-preview')
   console.log('Found sections:', sections.length)
 
   let lineNumber = 1
 
-  // 使用 TreeWalker 按文档顺序遍历所有元素
-  const walker = document.createTreeWalker(
-    previewRef.value,
-    NodeFilter.SHOW_ELEMENT,
-    null,
-    false
-  )
+  sections.forEach((section) => {
+    const children = section.children
 
-  const elements = []
-  let node
-  while (node = walker.nextNode()) {
-    elements.push(node)
-  }
-
-  console.log('Total elements found by TreeWalker:', elements.length)
-
-  // 再次遍历，按顺序编号
-  elements.forEach((el) => {
-    const tagName = el.tagName.toLowerCase()
-
-    // 只对特定类型的元素编号
-    if (!['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'li', 'tr', 'td', 'th', 'img', 'figure'].includes(tagName)) {
-      return
+    for (const child of children) {
+      lineNumber = processElementForLineNumbers(child, lineNumber, emit)
     }
-
-    // 表格行需要特殊处理（td/th 在 tr 内）
-    if (tagName === 'td' || tagName === 'th') {
-      // 跳过 - 会在 tr 处理时一起处理
-      return
-    }
-
-    // 处理 tr（表格行）- 整个行作为一个编号
-    if (tagName === 'tr') {
-      // 检查是否已经处理过
-      if (el.hasAttribute('data-line')) return
-
-      el.setAttribute('data-line', lineNumber)
-      el.setAttribute('data-element-id', lineNumber)
-      el.style.cursor = 'pointer'
-      el.addEventListener('click', () => {
-        emit('line-clicked', lineNumber)
-      })
-      lineNumber++
-      return
-    }
-
-    // 处理图片
-    if (tagName === 'img' || tagName === 'figure') {
-      el.setAttribute('data-line', lineNumber)
-      el.setAttribute('data-element-id', lineNumber)
-      el.style.cursor = 'pointer'
-      el.addEventListener('click', () => {
-        emit('line-clicked', lineNumber)
-      })
-      lineNumber++
-      return
-    }
-
-    // 其他元素（p, h1-h6, li）- 检查是否有内容
-    const text = el.textContent?.trim() || ''
-    if (!text) return
-
-    el.setAttribute('data-line', lineNumber)
-    el.setAttribute('data-element-id', lineNumber)
-    el.style.cursor = 'pointer'
-    el.addEventListener('click', () => {
-      emit('line-clicked', lineNumber)
-    })
-    lineNumber++
   })
 
   console.log('Total line numbers assigned:', lineNumber - 1)
+}
+
+/**
+ * 处理单个元素，返回更新后的行号
+ * 规则（与后端 python-docx 一致）：
+ *   - TABLE: 遍历所有直接子 tr，每行计 1
+ *   - 内容容器（ARTICLE, SECTION）：递归处理其直接子元素
+ *   - 块级元素（P, H1-H6, DIV, BLOCKQUOTE, PRE, FIGURE, UL, OL, LI）: 计 1
+ *   - 其他元素: 跳过
+ */
+const processElementForLineNumbers = (element, lineNumber, emit) => {
+  const tag = element.tagName?.toUpperCase()
+
+  if (tag === 'TABLE') {
+    // 表格：遍历所有直接子 tr（只计直接子行，不计嵌套表格的行）
+    const rows = element.querySelectorAll(':scope > tbody > tr, :scope > thead > tr, :scope > tr')
+    rows.forEach((row) => {
+      row.setAttribute('data-line', lineNumber)
+      row.setAttribute('data-element-id', lineNumber)
+      row.style.cursor = 'pointer'
+      row.addEventListener('click', () => {
+        emit('line-clicked', lineNumber)
+      })
+      lineNumber++
+    })
+  } else if (tag === 'ARTICLE' || tag === 'SECTION') {
+    // 内容容器：递归处理其直接子元素（不为自己编号）
+    const children = element.children
+    for (const child of children) {
+      lineNumber = processElementForLineNumbers(child, lineNumber, emit)
+    }
+  } else if (isBlockElement(tag)) {
+    // 段落/标题/div 等块级元素：计 1 行
+    element.setAttribute('data-line', lineNumber)
+    element.setAttribute('data-element-id', lineNumber)
+    element.style.cursor = 'pointer'
+    element.addEventListener('click', () => {
+      emit('line-clicked', lineNumber)
+    })
+    lineNumber++
+  }
+  // 其他元素（如 HEADER, <br>, <span>, <a>, <img> 等内联/替换元素）跳过
+
+  return lineNumber
+}
+
+/**
+ * 判断是否为需要计数的块级元素
+ */
+const isBlockElement = (tag) => {
+  const BLOCK_TAGS = new Set([
+    'P', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6',
+    'DIV', 'BLOCKQUOTE', 'PRE', 'FIGURE',
+    'UL', 'OL', 'LI',
+  ])
+  return BLOCK_TAGS.has(tag)
 }
 
 // 渲染切片内容（带 <!-- id --> 标记的 Markdown）
@@ -446,7 +443,7 @@ const convertMarkdownToHtml = (markdown) => {
 const injectLineNumbersForSlice = (container) => {
   if (!container) return
 
-  // 用于存储 elementId -> displayLineNumber 的映射
+  // 用于存储 elementId（原文行号）-> displayLineNumber（切片内行号）的映射
   const lineNumberMap = new Map()
   let displayLineNumber = 1
 
@@ -459,7 +456,6 @@ const injectLineNumbersForSlice = (container) => {
 
     // 尝试解析 HTML 注释中的 id: <!-- xxx -->
     let elementId = null
-    let displayNumber = null
 
     // 检查是否有 HTML 注释节点作为第一个子节点
     const childNodes = Array.from(el.childNodes)
@@ -469,22 +465,27 @@ const injectLineNumbersForSlice = (container) => {
       const match = commentText.match(/^(\d+)$/)
       if (match) {
         elementId = parseInt(match[1])
-        displayNumber = elementId
+        // 存储原文行号到切片内行号的映射
         lineNumberMap.set(elementId, displayLineNumber)
-        el.setAttribute('data-line', displayNumber)
+        // data-element-id 存储原文行号（用于跨切片跳转）
         el.setAttribute('data-element-id', elementId)
+        // data-line 存储切片内行号（用于切片内跳转）
+        el.setAttribute('data-line', displayLineNumber)
+        el.style.cursor = 'pointer'
+        el.addEventListener('click', () => {
+          emit('line-clicked', displayLineNumber)
+        })
+        displayLineNumber++
+        return
       }
     }
 
-    if (elementId === null) {
-      // 没有标记的元素，使用递增行号
-      el.setAttribute('data-line', displayLineNumber)
-      displayNumber = displayLineNumber
-    }
-
+    // 没有 HTML 注释标记的元素，使用递增行号（切片内行号）
+    el.setAttribute('data-line', displayLineNumber)
+    el.setAttribute('data-element-id', displayLineNumber)
     el.style.cursor = 'pointer'
     el.addEventListener('click', () => {
-      emit('line-clicked', displayNumber)
+      emit('line-clicked', displayLineNumber)
     })
 
     displayLineNumber++
@@ -500,7 +501,19 @@ const scrollToLine = (lineNumber) => {
   const container = previewMode.value === 'slice' ? slicePreviewRef.value : previewRef.value
   if (!container) return
 
-  const element = container.querySelector(`[data-line="${lineNumber}"]`)
+  let element = null
+
+  if (previewMode.value === 'slice') {
+    // 切片预览模式：优先使用 data-element-id（原文行号）查找，再使用 data-line（切片内行号）
+    element = container.querySelector(`[data-element-id="${lineNumber}"]`)
+    if (!element) {
+      element = container.querySelector(`[data-line="${lineNumber}"]`)
+    }
+  } else {
+    // 原文预览模式：直接使用 data-line 查找
+    element = container.querySelector(`[data-line="${lineNumber}"]`)
+  }
+
   if (element) {
     element.scrollIntoView({ behavior: 'smooth', block: 'center' })
 
@@ -713,12 +726,18 @@ defineExpose({
   text-align: justify;
 }
 
-/* 高亮样式 */
+/* 高亮样式 - 黄色背景 + 边框 */
 .highlight-line {
-  background-color: #fef3c7 !important;
-  border-left: 3px solid #f59e0b !important;
-  padding-left: 8px;
-  transition: all 0.3s ease;
+  background-color: #fef08a !important;
+  outline: 2px solid #facc15 !important;
+  outline-offset: 2px;
+  border-radius: 2px;
+  transition: background-color 0.3s ease, outline-color 0.3s ease;
+}
+
+/* 行高亮动画（兼容切片和原文预览） */
+[data-line] {
+  transition: background-color 0.5s ease, outline 0.5s ease;
 }
 
 /* 搜索高亮 */
