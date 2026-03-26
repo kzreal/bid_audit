@@ -316,10 +316,19 @@ export const useAppStore = defineStore('app', {
           level: this.sliceMetadata[index]?.level || 0
         }))
 
-        // 调用 generate-conclusion 生成最终结论
+        // 调用 generate-conclusion 生成最终结论 - 格式化reviews为LLM需要的结构
+        const conclusionReviews = reviewsWithLineNumbers.map(r => ({
+          title: r.sliceTitle,
+          suggestion: r.suggestion,
+          evidence: r.lineNumber ? [r.lineNumber] : null
+        }))
+
+        // task 直接使用 title 字符串
+        const taskText = typeof task === 'object' ? task.title : task
+
         const conclusionResponse = await generateConclusion({
-          task,
-          reviews: reviewsWithLineNumbers
+          task: taskText,
+          reviews: conclusionReviews
         })
 
         // 更新任务
