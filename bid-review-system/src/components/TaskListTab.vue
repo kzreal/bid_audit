@@ -85,7 +85,13 @@
                 <h4 class="text-sm font-medium text-black leading-relaxed">{{ task.title }}</h4>
                 <!-- 状态标签 -->
                 <span
-                  v-if="task.review"
+                  v-if="task.reviewing"
+                  class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700 flex-shrink-0"
+                >
+                  审核中
+                </span>
+                <span
+                  v-else-if="task.review"
                   :class="[
                     'inline-flex items-center px-2 py-0.5 rounded text-xs font-medium flex-shrink-0',
                     task.review.conclusion === '通过' ? 'bg-green-100 text-green-700' :
@@ -182,8 +188,10 @@ const handleSelectTask = async (taskId) => {
 
   // 如果任务未审核，自动开始审核
   const task = tasks.value.find(t => t.id === taskId)
-  if (task && !task.review && !loading.value) {
+  if (task && !task.review && !task.reviewing && !loading.value) {
     try {
+      // 设置为审核中状态
+      store.updateTask(taskId, { reviewing: true })
       if (store.useSliceReview) {
         await store.reviewTaskWithSlices(taskId)
       } else {
@@ -191,6 +199,9 @@ const handleSelectTask = async (taskId) => {
       }
     } catch (error) {
       console.error('审核任务失败:', error)
+    } finally {
+      // 清除审核中状态
+      store.updateTask(taskId, { reviewing: false })
     }
   }
 }
@@ -231,10 +242,12 @@ const handleUndoTemplate = () => {
 }
 
 const handleReviewAll = async () => {
-  const unreviewed = tasks.value.filter(t => !t.review)
+  const unreviewed = tasks.value.filter(t => !t.review && !t.reviewing)
   for (const task of unreviewed) {
     try {
       store.selectTask(task.id)
+      // 设置为审核中状态
+      store.updateTask(task.id, { reviewing: true })
       if (store.useSliceReview) {
         await store.reviewTaskWithSlices(task.id)
       } else {
@@ -242,6 +255,9 @@ const handleReviewAll = async () => {
       }
     } catch (error) {
       console.error(`审核任务 ${task.id} 失败:`, error)
+    } finally {
+      // 清除审核中状态
+      store.updateTask(task.id, { reviewing: false })
     }
   }
 }
