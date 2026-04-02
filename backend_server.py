@@ -8,6 +8,7 @@ from flask_cors import CORS
 import os
 import sys
 import logging
+import json
 import tempfile
 import base64
 import requests
@@ -226,9 +227,23 @@ def generate_tasks():
         # 获取 output 字段（HiAgent API 新格式）
         output = result.get('output', '')
 
-        # 将 output 传递给 TaskCreator.parse_tasks 进行解析
-        # 新格式: {"output": "{\"tasks\": [\"任务1\", \"任务2\"]}"}
-        tasks = TaskCreator.parse_tasks(output)
+        # 【调试】打印 HiAgent 原始返回
+        print(f"\n{'='*60}")
+        print(f"[DEBUG-generate-tasks] HiAgent 原始返回:")
+        print(f"  status: {result.get('status')}")
+        print(f"  output type: {type(output)}")
+        print(f"  output (前500字符): {str(output)[:500]}")
+        print(f"{'='*60}")
+
+        # 将完整的 JSON 响应传递给 TaskCreator.parse_tasks 进行解析
+        raw_json = json.dumps(result, ensure_ascii=False)
+        tasks = TaskCreator.parse_tasks(raw_json)
+
+        # 【调试】打印解析后的任务
+        print(f"[DEBUG-generate-tasks] 解析后任务数: {len(tasks)}")
+        for t in tasks:
+            print(f"  任务 {t.get('id')}: {t.get('content', '')[:80]}")
+        print(f"{'='*60}\n")
 
         return jsonify({
             'code': 200,
@@ -283,14 +298,28 @@ def generate_conclusion():
                 'message': '审核结果必须是数组格式'
             }), 400
 
+        # 【调试】打印 generate-conclusion 的输入
+        print(f"\n{'='*60}")
+        print(f"[DEBUG-generate-conclusion] 输入参数:")
+        print(f"  task: '{task}'")
+        print(f"  reviews 数量: {len(reviews)}")
+        for i, r in enumerate(reviews):
+            print(f"  review[{i}]: {json.dumps(r, ensure_ascii=False)[:200]}")
+        print(f"{'='*60}")
+
         # 调用 SummaryAgent 生成结论
         result_text = summary_agent.generate_conclusion(task, reviews, use_sync=True)
 
         if not result_text:
+            print(f"[DEBUG-generate-conclusion] 结果为空!")
+            print(f"{'='*60}\n")
             return jsonify({
                 'code': 500,
                 'message': '结论生成失败'
             }), 500
+
+        # 【调试】打印 HiAgent 返回
+        print(f"[DEBUG-generate-conclusion] HiAgent 原始返回: {str(result_text)[:500]}")
 
         # 使用 SummaryAgent.parse_conclusion 解析总结结果
         parsed = summary_agent.parse_conclusion(result_text)
@@ -434,14 +463,27 @@ def review_task_slices():
         else:
             task = str(task_input)
 
-        print(f"开始多切片审核，任务：{str(task)[:50]}...，切片数：{len(slices)}")
+        print(f"\n{'='*60}")
+        print(f"[DEBUG-review-task-slices] 开始多切片审核")
+        print(f"  任务: {str(task)[:80]}")
+        print(f"  切片数: {len(slices)}")
+        for i, s in enumerate(slices):
+            print(f"  切片 {i}: {str(s)[:100]}...")
+        print(f"{'='*60}")
 
         # 对每个切片调用 TaskAuditor
         reviews = []
         for idx, slice_text in enumerate(slices):
-            print(f"正在审核切片 {idx+1}/{len(slices)}...")
+            print(f"\n[DEBUG] 正在审核切片 {idx+1}/{len(slices)}...")
             result_text = task_auditor.audit_task(task, slice_text, use_sync=True)
+
+            # 【调试】打印 HiAgent 审核返回
+            print(f"  [DEBUG-audit-slice-{idx}] HiAgent 返回: {str(result_text)[:500] if result_text else 'None'}")
+
             parsed = TaskAuditor.parse_audit_result(result_text)
+
+            # 【调试】打印解析结果
+            print(f"  [DEBUG-audit-slice-{idx}] 解析结果: suggestion={parsed.get('suggestion', '')[:100]}, evidence={parsed.get('evidence', '')}")
 
             # 处理 evidence，如果是字符串 "null" 则转为 null
             evidence = parsed.get('evidence', '')
@@ -454,8 +496,10 @@ def review_task_slices():
             })
 
         # 调用 SummaryAgent 汇总所有切片的审核结果
-        # 只返回原始切片审核结果，不做整合处理
-        print(f"\n切片审核完成，共 {len(reviews)} 个切片")
+        print(f"\n[DEBUG-review-task-slices] 切片审核完成，共 {len(reviews)} 个切片")
+        for i, r in enumerate(reviews):
+            print(f"  review[{i}]: suggestion={r['suggestion'][:80]}, evidence={r['evidence']}")
+        print(f"{'='*60}\n")
 
         # 返回简化格式（包含 task 和 slices_reviews）
         return jsonify({

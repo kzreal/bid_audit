@@ -320,7 +320,7 @@ export const useAppStore = defineStore('app', {
         const conclusionReviews = reviewsWithLineNumbers.map(r => ({
           title: r.sliceTitle,
           suggestion: r.suggestion,
-          evidence: r.lineNumber ? [r.lineNumber] : null
+          evidence: r.evidence || 'null'
         }))
 
         // task 直接使用 title 字符串
@@ -337,7 +337,7 @@ export const useAppStore = defineStore('app', {
             ...response.data,
             slices_reviews: reviewsWithLineNumbers,
             conclusion: conclusionResponse.data?.conclusion || '待确认',
-            reason: conclusionResponse.data?.reason || '',
+            reason: conclusionResponse.data?.reason ?? [],
             evidence: conclusionResponse.data?.evidence || '待补充',
             bidSource: conclusionResponse.data?.evidence || '待补充',
             requirementSource: conclusionResponse.data?.requirementSource || '招标要求',

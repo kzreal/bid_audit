@@ -40,7 +40,7 @@
 ├── config.py                 # 配置文件
 ├── .env                      # 环境变量（API Key 等）
 ├── CLAUDE.md                 # 本文档
-├── bid-review-system/        # 前端项目
+├── frontend/                # 前端项目
 │   ├── src/
 │   │   ├── main.js           # Vue 入口
 │   │   ├── App.vue           # 根组件
@@ -81,7 +81,7 @@ python3 backend_server.py
 
 ### 前端服务
 ```bash
-cd /Users/kyle/Projects/投标文件审核/bid-review-system
+cd /Users/kyle/Projects/投标文件审核/frontend
 npm run dev
 ```
 - 开发服务器自动代理 `/hiagent/*` 请求到后端
