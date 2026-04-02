@@ -1,28 +1,14 @@
 <template>
   <div class="word-preview-panel h-full flex flex-col">
     <!-- 工具栏 -->
-    <div class="toolbar border-b border-gray-200 px-4 py-3 flex-shrink-0">
+    <div class="toolbar border-b border-gray-200 px-4 py-2.5 flex-shrink-0">
       <div class="flex items-center justify-between">
-        <!-- 左侧：标题 + 预览模式切换 -->
-        <div class="flex items-center gap-3">
-          <span class="text-sm font-semibold text-black">文档预览</span>
-          <div class="w-px h-4 bg-gray-200"></div>
-          <div class="flex items-center gap-1">
-            <button
-            v-if="wordDocument || sliceContent"
-            @click="previewMode = 'original'"
-            :class="['px-3 py-1.5 text-xs rounded-vercel-sm transition-colors', previewMode === 'original' ? 'bg-black text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200']"
-          >
-            原文预览
-          </button>
-          <button
-            v-if="sliceContent"
-            @click="previewMode = 'slice'"
-            :class="['px-3 py-1.5 text-xs rounded-vercel-sm transition-colors', previewMode === 'slice' ? 'bg-black text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200']"
-          >
-            切片预览
-          </button>
-          </div>
+        <!-- 左侧：文件名 -->
+        <div class="flex items-center gap-2 min-w-0">
+          <svg class="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+          </svg>
+          <span class="text-sm font-medium text-black truncate">{{ fileName || '文档预览' }}</span>
         </div>
 
         <!-- 右侧：搜索框 -->
@@ -32,7 +18,7 @@
               v-model="searchText"
               type="text"
               placeholder="搜索..."
-              class="w-48 border border-gray-300 rounded-vercel-sm pl-8 pr-3 py-1.5 text-xs focus:outline-none focus:border-black transition-colors"
+              class="w-40 border border-gray-300 rounded-vercel-sm pl-7 pr-2 py-1 text-xs focus:outline-none focus:border-black transition-colors"
               @keyup.enter="handleSearch"
             />
             <svg class="w-4 h-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -159,6 +145,10 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['line-clicked'])
+
+const fileName = computed(() => {
+  return props.wordDocument?.name || ''
+})
 
 const previewMode = ref('original') // 'original' | 'slice'
 const slicePreviewRef = ref(null)
