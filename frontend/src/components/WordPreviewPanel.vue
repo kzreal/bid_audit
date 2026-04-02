@@ -711,6 +711,8 @@ defineExpose({
   font-size: 12pt;
   line-height: 1.5;
   color: #000000;
+  transform: scale(1.05);
+  transform-origin: top center;
 }
 
 .docx-preview section {

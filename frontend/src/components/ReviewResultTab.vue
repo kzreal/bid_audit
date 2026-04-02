@@ -74,6 +74,7 @@
         <div
           v-for="(task, index) in sortedTasks"
           :key="task.id"
+          :data-task-id="task.id"
           class="result-item p-4 border border-gray-200 rounded-vercel-sm bg-white hover:border-gray-300 transition-all duration-200"
         >
           <!-- 头部 -->
@@ -199,12 +200,12 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, nextTick, watch } from 'vue'
 import { useAppStore } from '../stores/appStore'
 
 const store = useAppStore()
 const sortByFailedFirst = ref(true)
-const expandedTasks = ref(new Set()) // 记录哪些任务的切片详情是展开的
+const expandedTasks = ref(new Set())
 
 const emit = defineEmits(['jump-to-line'])
 
@@ -327,6 +328,56 @@ const toggleSliceDetails = (taskId) => {
   // 触发响应式更新
   expandedTasks.value = new Set(expandedTasks.value)
 }
+
+// 滚动到指定任务的结果
+const scrollToTask = (taskId) => {
+  // 多次 nextTick 确保 DOM 完全渲染
+  nextTick(() => {
+    nextTick(() => {
+      // 用 String() 确保类型一致进行比较
+      const taskIdStr = String(taskId)
+      const elements = document.querySelectorAll('[data-task-id]')
+      let targetEl = null
+      for (const el of elements) {
+        if (String(el.getAttribute('data-task-id')) === taskIdStr) {
+          targetEl = el
+          break
+        }
+      }
+      if (targetEl) {
+        targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        targetEl.classList.add('highlight-line')
+        setTimeout(() => targetEl.classList.remove('highlight-line'), 3000)
+      } else {
+        // 如果还没渲染出来，延迟重试
+        setTimeout(() => {
+          const retryEl = document.querySelector(`[data-task-id="${taskIdStr}"]`)
+          if (retryEl) {
+            retryEl.scrollIntoView({ behavior: 'smooth', block: 'center' })
+            retryEl.classList.add('highlight-line')
+            setTimeout(() => retryEl.classList.remove('highlight-line'), 3000)
+          }
+        }, 300)
+      }
+    })
+  })
+}
+
+// 组件挂载时，如果有选中的任务，自动滚动到对应结果
+onMounted(() => {
+  if (store.selectedTaskId) {
+    scrollToTask(store.selectedTaskId)
+  }
+})
+
+// 监听 selectedTaskId 变化，处理从其他 tab 跳转过来的情况
+watch(() => store.selectedTaskId, (newId) => {
+  if (newId && store.currentTab === 'review-result') {
+    scrollToTask(newId)
+  }
+})
+
+defineExpose({ scrollToTask })
 </script>
 
 <style scoped>

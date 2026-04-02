@@ -120,11 +120,6 @@
                 </span>
               </div>
 
-              <!-- 审核原因（如果已审核） -->
-              <p v-if="task.review?.reason" class="text-xs text-gray-500 mt-2 line-clamp-2">
-                {{ task.review.reason }}
-              </p>
-
               <!-- 时间 -->
               <p class="text-xs text-gray-400 mt-2">
                 {{ formatTime(task.createdAt) }}
@@ -206,23 +201,26 @@ const formatTime = (date) => {
 const handleSelectTask = async (taskId) => {
   store.selectTask(taskId)
 
-  // 如果任务未审核，自动开始审核
   const task = tasks.value.find(t => t.id === taskId)
-  if (task && !task.review && !task.reviewing && !loading.value) {
-    try {
-      // 设置为审核中状态
-      store.updateTask(taskId, { reviewing: true })
-      if (store.useSliceReview) {
-        await store.reviewTaskWithSlices(taskId)
-      } else {
-        await store.reviewTask(taskId)
-      }
-    } catch (error) {
-      console.error('审核任务失败:', error)
-    } finally {
-      // 清除审核中状态
-      store.updateTask(taskId, { reviewing: false })
+
+  // 已审核任务：跳转到审核结果
+  if (task?.review) {
+    store.setCurrentTab('review-result')
+    return
+  }
+
+  // 审核中或全局加载中，不重复触发
+  if (task?.reviewing || store.loading) return
+
+  // 未审核任务：自动开始审核
+  try {
+    if (store.useSliceReview) {
+      await store.reviewTaskWithSlices(taskId)
+    } else {
+      await store.reviewTask(taskId)
     }
+  } catch (error) {
+    console.error('审核任务失败:', error)
   }
 }
 
