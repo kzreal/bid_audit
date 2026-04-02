@@ -37,7 +37,7 @@
 投标文件审核/
 ├── backend_server.py          # Flask 后端服务（入口）
 ├── hiagent_client.py         # HiAgent API 客户端封装
-├── config.py                 # 配置文件
+├── data_structure.md         # 数据流结构文档
 ├── .env                      # 环境变量（API Key 等）
 ├── CLAUDE.md                 # 本文档
 ├── frontend/                # 前端项目
@@ -124,8 +124,7 @@ POST /hiagent/generate-tasks
       "content": "任务描述2",
       "subtasks": []
     }
-  ],
-  "raw_text": "{\"output\": \"...\"}"
+  ]
 }
 ```
 
@@ -154,8 +153,7 @@ POST /hiagent/review-task
   "data": {
     "suggestion": "审核建议文本",
     "evidence": "证据/来源文本"
-  },
-  "raw_text": "..."
+  }
 }
 ```
 
@@ -226,11 +224,11 @@ POST /hiagent/generate-conclusion
   "message": "总结成功",
   "data": {
     "conclusion": "通过/不通过/待确认",
-    "reason": "原因说明",
-    "evidence": "证据"
+    "suggestions": [
+      {"suggestion": "原因说明", "evidence": "证据"}
+    ]
   },
-  "status": "通过",
-  "raw_text": "..."
+  "status": "通过"
 }
 ```
 
@@ -286,8 +284,7 @@ interface Task {
 ```typescript
 interface Review {
   conclusion: '通过' | '不通过' | '待确认';  // 审核结论
-  reason: string;            // 审核原因
-  evidence: string;          // 证据/来源
+  suggestions: Array<{ suggestion: string; evidence: string }>;  // 审核发现列表
   bidSource?: string;         // 投标来源
   requirementSource?: string;  // 招标要求来源
   slices_reviews?: SliceReview[];  // 切片审核结果

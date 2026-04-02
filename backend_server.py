@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 # 添加当前目录到 Python 路径，以便导入 hiagent_client
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from hiagent_client import TaskCreator, TaskAuditor, SummaryAgent
+from hiagent_client import HiAgentClient, TaskCreator, TaskAuditor, SummaryAgent, _extract_output
 from docx import Document
 from docx.oxml.table import CT_Tbl
 from docx.oxml.text.paragraph import CT_P
@@ -189,9 +189,9 @@ API_URL, TASK_CREATOR_API_KEY, TASK_AUDITOR_API_KEY, SUMMARY_API_KEY, USER_ID = 
 print(f"Config: API_URL={API_URL}, TASK_CREATOR_API_KEY={TASK_CREATOR_API_KEY}, TASK_AUDITOR_API_KEY={TASK_AUDITOR_API_KEY}, SUMMARY_API_KEY={SUMMARY_API_KEY}, USER_ID={USER_ID}")
 
 # 初始化 HiAgent 客户端，使用不同的 API key
-task_creator = TaskCreator(API_URL, TASK_CREATOR_API_KEY, USER_ID)
-task_auditor = TaskAuditor(API_URL, TASK_AUDITOR_API_KEY, USER_ID)
-summary_agent = SummaryAgent(API_URL, SUMMARY_API_KEY, USER_ID)
+task_creator_client = HiAgentClient(API_URL, TASK_CREATOR_API_KEY, USER_ID)
+task_auditor_client = HiAgentClient(API_URL, TASK_AUDITOR_API_KEY, USER_ID)
+summary_agent_client = HiAgentClient(API_URL, SUMMARY_API_KEY, USER_ID)
 
 
 @app.route('/hiagent/generate-tasks', methods=['POST'])
@@ -213,43 +213,27 @@ def generate_tasks():
         # 如果传递了 type 参数，使用传递的值；否则使用默认值 1
         type_param = task_type if task_type is not None else 1
 
-        result = task_creator.sync_run_workflow({
+        result = task_creator_client.sync_run_workflow({
             "extraction": requirement,
             "type": type_param
         })
 
-        if not result or result.get('status') != 'success':
+        if not result:
             return jsonify({
                 'code': 500,
                 'message': '任务生成失败'
             }), 500
 
-        # 获取 output 字段（HiAgent API 新格式）
-        output = result.get('output', '')
+        tasks = TaskCreator.parse_tasks(result)
 
-        # 【调试】打印 HiAgent 原始返回
-        print(f"\n{'='*60}")
-        print(f"[DEBUG-generate-tasks] HiAgent 原始返回:")
-        print(f"  status: {result.get('status')}")
-        print(f"  output type: {type(output)}")
-        print(f"  output (前500字符): {str(output)[:500]}")
-        print(f"{'='*60}")
-
-        # 将完整的 JSON 响应传递给 TaskCreator.parse_tasks 进行解析
-        raw_json = json.dumps(result, ensure_ascii=False)
-        tasks = TaskCreator.parse_tasks(raw_json)
-
-        # 【调试】打印解析后的任务
-        print(f"[DEBUG-generate-tasks] 解析后任务数: {len(tasks)}")
+        print(f"[generate-tasks] 解析后任务数: {len(tasks)}")
         for t in tasks:
             print(f"  任务 {t.get('id')}: {t.get('content', '')[:80]}")
-        print(f"{'='*60}\n")
 
         return jsonify({
             'code': 200,
             'message': '任务生成成功',
-            'data': tasks,
-            'raw_text': output
+            'data': tasks
         })
 
     except Exception as e:
@@ -298,60 +282,32 @@ def generate_conclusion():
                 'message': '审核结果必须是数组格式'
             }), 400
 
-        # 【调试】打印 generate-conclusion 的输入
-        print(f"\n{'='*60}")
-        print(f"[DEBUG-generate-conclusion] 输入参数:")
-        print(f"  task: '{task}'")
-        print(f"  reviews 数量: {len(reviews)}")
-        for i, r in enumerate(reviews):
-            print(f"  review[{i}]: {json.dumps(r, ensure_ascii=False)[:200]}")
-        print(f"{'='*60}")
+        print(f"[generate-conclusion] task: '{task}', reviews: {len(reviews)} 条")
 
-        # 调用 SummaryAgent 生成结论
-        result_text = summary_agent.generate_conclusion(task, reviews, use_sync=True)
+        # 调用 SummaryAgent 工作流
+        result = summary_agent_client.sync_run_workflow({
+            "context": {
+                "task": task,
+                "reviews": reviews
+            }
+        })
 
-        if not result_text:
-            print(f"[DEBUG-generate-conclusion] 结果为空!")
-            print(f"{'='*60}\n")
+        if not result:
             return jsonify({
                 'code': 500,
                 'message': '结论生成失败'
             }), 500
 
-        # 【调试】打印 HiAgent 返回
-        print(f"[DEBUG-generate-conclusion] HiAgent 原始返回: {str(result_text)[:500]}")
+        # 直接从 dict 解析结论
+        parsed = SummaryAgent.parse_conclusion(result)
 
-        # 使用 SummaryAgent.parse_conclusion 解析总结结果
-        parsed = summary_agent.parse_conclusion(result_text)
-        conclusion = parsed.get('conclusion', '')
-        reason = parsed.get('reason', '')
-        evidence = parsed.get('evidence', '')
+        status = parsed['conclusion'] or '待确认'
 
-        # 调试：打印解析结果
-        print(f"\n=== parse_conclusion 结果 ===")
-        print(f"conclusion: '{conclusion}'")
-        print(f"reason: '{reason}'")
-        print(f"evidence: '{evidence}'")
-
-        # 直接使用 hiagent 输出的 conclusion 作为 status
-        status = conclusion if conclusion else '待确认'
-
-        print(f"最终 status: '{status}'")
-
-        # 使用 Python 的 datetime 获取当前时间
-        from datetime import datetime
-
-        # 返回符合 guide.md 定义的格式
         return jsonify({
             'code': 200,
             'message': '总结成功',
-            'data': {
-                'conclusion': conclusion,
-                'reason': reason,
-                'evidence': evidence
-            },
-            'status': status,
-            'raw_text': result_text
+            'data': parsed,
+            'status': status
         })
 
     except Exception as e:
@@ -397,29 +353,20 @@ def review_task():
             }), 400
 
         # 调用 HiAgent API 审核任务
-        result_text = task_auditor.audit_task(task, context, use_sync=True)
+        result = task_auditor_client.sync_run_workflow({"task": task, "context": context})
 
-        if not result_text:
+        if not result:
             return jsonify({
                 'code': 500,
                 'message': '任务审核失败'
             }), 500
 
-        # 使用 TaskAuditor.parse_audit_result 解析审核结果
-        # 新格式: {"result": {"suggestion": "...", "evidence": "..."}}
-        parsed = TaskAuditor.parse_audit_result(result_text)
-        suggestion = parsed.get('suggestion', '')
-        evidence = parsed.get('evidence', '')
+        parsed = TaskAuditor.parse_audit_result(result)
 
-        # 返回符合格式
         return jsonify({
             'code': 200,
             'message': '任务审核成功',
-            'data': {
-                'suggestion': suggestion,
-                'evidence': evidence
-            },
-            'raw_text': result_text
+            'data': parsed
         })
 
     except Exception as e:
@@ -474,18 +421,14 @@ def review_task_slices():
         # 对每个切片调用 TaskAuditor
         reviews = []
         for idx, slice_text in enumerate(slices):
-            print(f"\n[DEBUG] 正在审核切片 {idx+1}/{len(slices)}...")
-            result_text = task_auditor.audit_task(task, slice_text, use_sync=True)
+            print(f"[review-task-slices] 审核切片 {idx+1}/{len(slices)}...")
+            result = task_auditor_client.sync_run_workflow({"task": task, "context": slice_text})
 
-            # 【调试】打印 HiAgent 审核返回
-            print(f"  [DEBUG-audit-slice-{idx}] HiAgent 返回: {str(result_text)[:500] if result_text else 'None'}")
+            if not result:
+                reviews.append({'suggestion': '', 'evidence': None})
+                continue
 
-            parsed = TaskAuditor.parse_audit_result(result_text)
-
-            # 【调试】打印解析结果
-            print(f"  [DEBUG-audit-slice-{idx}] 解析结果: suggestion={parsed.get('suggestion', '')[:100]}, evidence={parsed.get('evidence', '')}")
-
-            # 处理 evidence，如果是字符串 "null" 则转为 null
+            parsed = TaskAuditor.parse_audit_result(result)
             evidence = parsed.get('evidence', '')
             if evidence == 'null' or evidence == '""':
                 evidence = None
@@ -495,11 +438,7 @@ def review_task_slices():
                 'evidence': evidence
             })
 
-        # 调用 SummaryAgent 汇总所有切片的审核结果
-        print(f"\n[DEBUG-review-task-slices] 切片审核完成，共 {len(reviews)} 个切片")
-        for i, r in enumerate(reviews):
-            print(f"  review[{i}]: suggestion={r['suggestion'][:80]}, evidence={r['evidence']}")
-        print(f"{'='*60}\n")
+        print(f"[review-task-slices] 完成，共 {len(reviews)} 个切片")
 
         # 返回简化格式（包含 task 和 slices_reviews）
         return jsonify({
