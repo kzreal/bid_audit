@@ -283,9 +283,9 @@ const showRequirementSection = computed(() => {
   return store.currentProjectId && parsed.value
 })
 
-// 模板列表（有任务时隐藏模板）
+// 模板列表
 const templates = computed(() => {
-  return store.tasks.length > 0 ? [] : allTemplates
+  return allTemplates
 })
 
 const canConvert = computed(() => {
