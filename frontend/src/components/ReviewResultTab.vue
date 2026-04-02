@@ -1,5 +1,5 @@
 <template>
-  <div class="review-result-tab p-5">
+  <div class="review-result-tab h-full overflow-y-auto p-5">
     <!-- 审核概览 -->
     <div class="mb-6">
       <h3 class="text-sm font-semibold text-black mb-4">审核概览</h3>

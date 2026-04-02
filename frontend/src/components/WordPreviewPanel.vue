@@ -3,9 +3,12 @@
     <!-- 工具栏 -->
     <div class="toolbar border-b border-gray-200 px-4 py-3 flex-shrink-0">
       <div class="flex items-center justify-between">
-        <!-- 左侧：预览模式切换 -->
-        <div class="flex items-center gap-2">
-          <button
+        <!-- 左侧：标题 + 预览模式切换 -->
+        <div class="flex items-center gap-3">
+          <span class="text-sm font-semibold text-black">文档预览</span>
+          <div class="w-px h-4 bg-gray-200"></div>
+          <div class="flex items-center gap-1">
+            <button
             v-if="wordDocument || sliceContent"
             @click="previewMode = 'original'"
             :class="['px-3 py-1.5 text-xs rounded-vercel-sm transition-colors', previewMode === 'original' ? 'bg-black text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200']"
@@ -19,6 +22,7 @@
           >
             切片预览
           </button>
+          </div>
         </div>
 
         <!-- 右侧：搜索框 -->

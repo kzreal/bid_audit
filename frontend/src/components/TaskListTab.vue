@@ -1,12 +1,22 @@
 <template>
-  <div class="task-list-tab p-5">
+  <div class="task-list-tab h-full overflow-y-auto p-5">
     <!-- 头部操作区 -->
     <div class="mb-5 flex items-center justify-between gap-3">
       <div class="flex-1">
         <h3 class="text-sm font-semibold text-black">
           任务列表
           <span class="text-gray-400 font-normal ml-2">{{ tasks.length }} 个任务</span>
+          <span v-if="reviewedCount > 0" class="text-gray-400 font-normal ml-1">
+            · {{ reviewedCount }}/{{ tasks.length }} 已审核
+          </span>
         </h3>
+        <!-- 进度条 -->
+        <div v-if="tasks.length > 0" class="mt-2 w-full h-1 bg-gray-100 rounded-full overflow-hidden">
+          <div
+            class="h-full bg-vercel-blue transition-all duration-500 ease-out rounded-full"
+            :style="{ width: progressPercent + '%' }"
+          ></div>
+        </div>
       </div>
       <div class="flex items-center gap-2">
         <!-- 撤销按钮 -->
@@ -48,7 +58,7 @@
       </svg>
       <p class="text-gray-500 text-sm mb-4">暂无任务</p>
       <button
-        @click="store.setCurrentTab('create-task')"
+        @click="store.setCurrentTab('upload')"
         class="text-sm text-vercel-blue hover:text-vercel-blue-hover font-medium transition-colors"
       >
         去创建任务
@@ -86,8 +96,9 @@
                 <!-- 状态标签 -->
                 <span
                   v-if="task.reviewing"
-                  class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700 flex-shrink-0"
+                  class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700 flex-shrink-0"
                 >
+                  <span class="spinner-mini"></span>
                   审核中
                 </span>
                 <span
@@ -175,6 +186,15 @@ const isAllSelected = computed(() => {
 
 const isPartiallySelected = computed(() => {
   return selectedTaskIds.value.length > 0 && selectedTaskIds.value.length < tasks.value.length
+})
+
+const reviewedCount = computed(() => {
+  return tasks.value.filter(t => t.review).length
+})
+
+const progressPercent = computed(() => {
+  if (tasks.value.length === 0) return 0
+  return Math.round((reviewedCount.value / tasks.value.length) * 100)
 })
 
 const formatTime = (date) => {
@@ -273,5 +293,18 @@ const handleReviewAll = async () => {
 .task-list-leave-to {
   opacity: 0;
   transform: translateX(-20px);
+}
+
+.spinner-mini {
+  width: 12px;
+  height: 12px;
+  border: 2px solid rgba(59, 130, 246, 0.2);
+  border-top-color: #3b82f6;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 </style>

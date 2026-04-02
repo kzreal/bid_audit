@@ -87,7 +87,6 @@ export const useAppStore = defineStore('app', {
     currentTabComponent: (state) => {
       const tabMap = {
         'upload': 'UploadTab',
-        'create-task': 'CreateTaskTab',
         'task-list': 'TaskListTab',
         'review-result': 'ReviewResultTab'
       }
@@ -608,7 +607,7 @@ export const useAppStore = defineStore('app', {
 
     // 设置当前Tab
     setCurrentTab(tabId) {
-      const validTabs = ['upload', 'create-task', 'task-list', 'review-result']
+      const validTabs = ['upload', 'task-list', 'review-result']
       if (validTabs.includes(tabId)) {
         this.currentTab = tabId
       }
