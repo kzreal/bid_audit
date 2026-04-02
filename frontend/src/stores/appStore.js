@@ -331,16 +331,23 @@ export const useAppStore = defineStore('app', {
           reviews: conclusionReviews
         })
 
+        // 从 reasons 数组中收集所有 evidence 行号，拼接为 bidSource
+        const reasons = conclusionResponse.data?.reason ?? []
+        const allEvidence = reasons
+          .map(r => r.evidence)
+          .filter(e => e && e !== '')
+          .join(', ')
+
         // 更新任务
         this.updateTask(taskId, {
           review: {
             ...response.data,
             slices_reviews: reviewsWithLineNumbers,
             conclusion: conclusionResponse.data?.conclusion || '待确认',
-            reason: conclusionResponse.data?.reason ?? [],
-            evidence: conclusionResponse.data?.evidence || '待补充',
-            bidSource: conclusionResponse.data?.evidence || '待补充',
-            requirementSource: conclusionResponse.data?.requirementSource || '招标要求',
+            reason: reasons,
+            evidence: '',
+            bidSource: allEvidence || '',
+            requirementSource: '招标要求',
             createdAt: new Date()
           },
           updatedAt: new Date()

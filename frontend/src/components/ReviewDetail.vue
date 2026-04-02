@@ -61,12 +61,27 @@
           <div v-if="reasonItem.suggestion" class="mb-2">
             <p class="text-sm text-black leading-relaxed whitespace-pre-wrap">{{ reasonItem.suggestion }}</p>
           </div>
-          <!-- 证据 -->
-          <div v-if="reasonItem.evidence" class="flex items-start gap-2 text-xs text-gray-600 bg-gray-50 rounded-vercel-sm p-2">
+          <!-- 证据 - 可点击跳转到文档位置 -->
+          <div v-if="reasonItem.evidence" class="flex items-start gap-2 text-xs bg-gray-50 rounded-vercel-sm p-2">
             <svg class="w-3.5 h-3.5 flex-shrink-0 mt-0.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
             </svg>
-            <span class="leading-relaxed">{{ reasonItem.evidence }}</span>
+            <div class="flex flex-wrap items-center gap-1">
+              <span
+                v-for="(lineToken, lIdx) in parseEvidenceTokens(reasonItem.evidence)"
+                :key="lIdx"
+                class="inline-flex items-center gap-0.5"
+              >
+                <button
+                  v-if="lineToken.type === 'line'"
+                  @click.stop="navigateToLine(lineToken.value)"
+                  class="px-1.5 py-0.5 bg-vercel-blue text-white rounded-vercel-sm text-xs font-medium hover:bg-blue-700 transition-colors cursor-pointer"
+                >
+                  段落 {{ lineToken.display }}
+                </button>
+                <span v-else class="text-gray-600 leading-relaxed">{{ lineToken.value }}</span>
+              </span>
+            </div>
           </div>
         </div>
       </div>
@@ -296,6 +311,46 @@ const parseLineRanges = (bidSource) => {
   }
 
   return ranges
+}
+
+// 解析 evidence 字符串，提取行号为可点击 token
+const parseEvidenceTokens = (evidence) => {
+  if (!evidence) return []
+  const tokens = []
+  // 匹配数字或数字范围（如 "4", "12-15", "3—5"）
+  const regex = /(\d+)\s*[-—–]\s*(\d+)|(\d+)/g
+  let lastIndex = 0
+  let match
+  while ((match = regex.exec(evidence)) !== null) {
+    // 匹配之前的文本
+    if (match.index > lastIndex) {
+      const text = evidence.slice(lastIndex, match.index).trim()
+      if (text) tokens.push({ type: 'text', value: text })
+    }
+    if (match[1] && match[2]) {
+      // 范围格式
+      tokens.push({
+        type: 'line',
+        value: parseInt(match[1]),
+        display: `${match[1]}-${match[2]}`
+      })
+    } else {
+      // 单个行号
+      tokens.push({ type: 'line', value: parseInt(match[3]), display: match[3] })
+    }
+    lastIndex = regex.lastIndex
+  }
+  // 剩余文本
+  if (lastIndex < evidence.length) {
+    const text = evidence.slice(lastIndex).trim()
+    if (text) tokens.push({ type: 'text', value: text })
+  }
+  return tokens
+}
+
+// 点击行号跳转到文档位置
+const navigateToLine = (lineNumber) => {
+  store.setHighlightLine(lineNumber)
 }
 
 // 解析行号并获取切片原文

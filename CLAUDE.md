@@ -36,32 +36,39 @@
 ```
 投标文件审核/
 ├── backend_server.py          # Flask 后端服务（入口）
-├── hiagent_client.py         # HiAgent API 客户端封装
-├── data_structure.md         # 数据流结构文档
-├── .env                      # 环境变量（API Key 等）
-├── CLAUDE.md                 # 本文档
-├── frontend/                # 前端项目
+├── hiagent_client.py          # HiAgent API 客户端封装
+├── data_structure.md          # 数据流结构文档
+├── .env                       # 环境变量（API Key 等）
+├── CLAUDE.md                  # 本文档
+├── frontend/                  # 前端项目
 │   ├── src/
-│   │   ├── main.js           # Vue 入口
-│   │   ├── App.vue           # 根组件
-│   │   ├── style.css         # 全局样式
-│   │   ├── components/       # Vue 组件
-│   │   │   ├── Layout.vue                # 主布局（三栏）
-│   │   │   ├── BidRequirementInput.vue   # 招标信息输入
-│   │   │   ├── BidFileInput.vue          # 投标文件输入
-│   │   │   ├── TaskListOptimized.vue     # 任务列表
-│   │   │   ├── ReviewDetail.vue           # 审核详情
-│   │   │   ├── TemplateDrawer.vue         # 模版库抽屉
-│   │   │   ├── TemplateCard.vue           # 模版卡片
-│   │   │   ├── TemplateEditor.vue         # 模版编辑器
-│   │   │   └── TemplateTagSelector.vue    # 标签选择器
+│   │   ├── main.js            # Vue 入口
+│   │   ├── App.vue            # 根组件
+│   │   ├── style.css          # 全局样式
+│   │   ├── components/        # Vue 组件
+│   │   │   ├── MainLayout.vue           # 主布局（Tab导航+左右分栏）
+│   │   │   ├── TabNavigator.vue         # 顶部Tab导航
+│   │   │   ├── UploadTab.vue            # 项目创建/文件上传Tab
+│   │   │   ├── CreateTaskTab.vue        # 创建任务Tab
+│   │   │   ├── TaskListTab.vue          # 任务列表Tab
+│   │   │   ├── TaskListOptimized.vue    # 任务卡片组件
+│   │   │   ├── ReviewResultTab.vue      # 审核结果Tab（逐条suggestion+evidence）
+│   │   │   ├── ReviewDetail.vue         # 审核详情（suggestion+可点击evidence）
+│   │   │   ├── WordPreviewPanel.vue     # Word文档预览（带书签跳转）
+│   │   │   ├── BidRequirementInput.vue  # 招标信息输入
+│   │   │   ├── BidFileInput.vue         # 投标文件输入（多切片）
+│   │   │   ├── TemplateDrawer.vue       # 模版库抽屉
+│   │   │   ├── TemplateCard.vue         # 模版卡片
+│   │   │   ├── TemplateEditor.vue       # 模版编辑器
+│   │   │   └── TemplateTagSelector.vue  # 标签选择器
 │   │   ├── services/
-│   │   │   ├── hiagentService.js  # HiAgent API 调用
-│   │   │   └── templateService.js  # 模版数据服务
+│   │   │   ├── hiagentService.js  # HiAgent API 调用封装
+│   │   │   ├── templateService.js # 模版数据服务
+│   │   │   └── projectService.js  # 项目管理服务（localStorage）
 │   │   ├── stores/
 │   │   │   └── appStore.js        # Pinia 状态管理
 │   │   └── utils/
-│   │       └── http.js             # Axios 封装
+│   │       └── http.js            # Axios 封装
 │   ├── index.html
 │   ├── package.json
 │   └── vite.config.js
@@ -203,15 +210,9 @@ POST /hiagent/generate-conclusion
 **请求体**：
 ```json
 {
-  "task": {
-    "id": 1,
-    "title": "任务描述"
-  },
+  "task": "任务描述文本",
   "reviews": [
-    {
-      "suggestion": "切片1审核建议",
-      "evidence": "切片1证据"
-    }
+    {"title": "切片标题", "suggestion": "切片审核建议", "evidence": "4, 12-15"}
   ],
   "timestamp": "2024-01-01T00:00:00.000Z"
 }
@@ -223,14 +224,17 @@ POST /hiagent/generate-conclusion
   "code": 200,
   "message": "总结成功",
   "data": {
-    "conclusion": "通过/不通过/待确认",
+    "conclusion": "不通过",
     "suggestions": [
-      {"suggestion": "原因说明", "evidence": "证据"}
+      {"suggestion": "在'第一章'中，发现招标编号错误。", "evidence": "4"},
+      {"suggestion": "在'授权委托书'中，未发现有效印章。", "evidence": ""}
     ]
   },
-  "status": "通过"
+  "status": "不通过"
 }
 ```
+
+> **注意**：`data.suggestions` 是审核原因数组，每项包含 `suggestion`（原因描述）和 `evidence`（行号定位）。前端 `hiagentService.js` 将 `suggestions` 映射为 `reason` 字段。
 
 #### 5. 获取 API 状态
 ```
@@ -284,8 +288,8 @@ interface Task {
 ```typescript
 interface Review {
   conclusion: '通过' | '不通过' | '待确认';  // 审核结论
-  suggestions: Array<{ suggestion: string; evidence: string }>;  // 审核发现列表
-  bidSource?: string;         // 投标来源
+  reason: Array<{ suggestion: string; evidence: string }>;  // 审核原因数组（来自后端 suggestions）
+  bidSource?: string;         // 行号定位字符串，如 "4, 12-15, 23"（从 reason 中收集）
   requirementSource?: string;  // 招标要求来源
   slices_reviews?: SliceReview[];  // 切片审核结果
   createdAt: Date;           // 创建时间
@@ -321,17 +325,28 @@ interface Template {
 ```javascript
 state: {
   requirementText: '',      // 招标信息
-  bidSlices: [],           // 投标文件切片数组
+  bidSlices: [],           // 投标文件切片数组 [{index, title, level, content, startLine, endLine}]
+  sliceMetadata: [],       // 切片元数据 [{index, title, level, startLine, endLine}]
   contextText: '',         // 单个文本输入（兼容性保留）
   tasks: [],               // 任务列表
-  selectedTaskId: null,     // 当前选中任务ID
-  reviewing: false,         // 审核中状态
-  apiStatus: null,          // API状态
-  loading: false,           // 加载状态
+  selectedTaskId: null,    // 当前选中任务ID
+  reviewing: false,        // 审核中状态
+  apiStatus: null,         // API状态
+  loading: false,          // 加载状态
   error: null,             // 错误信息
   templateDrawerOpen: false,       // 模版库抽屉开关
-  currentEditingTemplate: null,     // 当前编辑的模版
-  appliedTemplateHistory: []        // 应用历史（用于撤销）
+  currentEditingTemplate: null,    // 当前编辑的模版
+  appliedTemplateHistory: [],      // 应用历史（用于撤销）
+  currentTab: 'upload',            // 当前Tab (upload/create-task/task-list/review-result)
+  wordDocument: null,              // Word文档文件对象
+  wordDocumentWithBookmarks: null, // 带书签的Word文档（预览用）
+  highlightLine: null,             // 高亮行号
+  previewMode: 'original',        // 预览模式 (original/slice)
+  projectName: '',                 // 项目名称
+  sliceLevel: 0,                   // 切片层级
+  selectedSliceIndex: null,        // 当前选中的切片索引
+  currentProjectId: null,          // 当前项目ID
+  projects: []                     // 项目列表
 }
 ```
 
@@ -356,15 +371,25 @@ generateTasks({ requirement: string })
 // 审核任务（单文件）
 reviewTask({ task: Task, context: string })
 
-// 多切片审核任务
+// 多切片审核任务（返回 slices_reviews + 待确认状态）
 reviewTaskSlices({ task: Task, slices: string[] })
 
 // 生成最终审核结论
+// 后端返回 data.suggestions 数组 → 前端映射为 reason 字段
 generateConclusion({ task: Task|string, reviews: SliceReview[] })
 
 // 获取 API 状态
 getApiStatus()
 ```
+
+### 数据字段映射说明
+
+后端 `SummaryAgent.parse_conclusion()` 返回 `{conclusion, suggestions}`，其中 `suggestions` 为 `[{suggestion, evidence}]` 数组。
+
+前端处理链路：
+1. `hiagentService.js`: `data.suggestions` → `reason` 字段
+2. `appStore.js`: 收集所有 `reason[].evidence` → `bidSource` 定位字符串
+3. `ReviewResultTab.vue` / `ReviewDetail.vue`: 遍历 `reason` 数组逐条渲染，evidence 解析为可点击的行号按钮
 
 ---
 
@@ -384,10 +409,10 @@ getApiStatus()
 ```
 
 ### 布局结构
-**三栏布局（35% + 30% + 35%）**：
-- **左侧（35%）**：招标信息输入 + 文件上传
-- **中间（30%）**：任务列表
-- **右侧（35%）**：审核详情
+**Tab 导航 + 左右分栏**：
+- **顶部 Tab 栏**：创建项目 | 创建任务 | 任务列表 | 审核结果
+- **左侧**：任务列表 / 审核结果（根据当前 Tab 切换）
+- **右侧**：Word 文档预览（带书签跳转）
 
 ---
 
@@ -395,11 +420,17 @@ getApiStatus()
 
 | 组件 | 说明 |
 |------|------|
-| `Layout.vue` | 主布局容器，包含头部和三栏内容区 |
+| `MainLayout.vue` | 主布局容器，Tab 导航 + 左右分栏 |
+| `TabNavigator.vue` | 顶部 Tab 导航（创建项目/创建任务/任务列表/审核结果） |
+| `UploadTab.vue` | 项目创建/加载 Tab（文件上传 + 切片） |
+| `CreateTaskTab.vue` | 创建任务 Tab（输入招标信息 + 生成任务） |
+| `TaskListTab.vue` | 任务列表 Tab（任务卡片 + 批量审核） |
+| `ReviewResultTab.vue` | 审核结果 Tab（概览统计 + 逐条显示 suggestion + evidence 定位按钮） |
+| `ReviewDetail.vue` | 单任务审核详情（结论 + reason 数组 + evidence 可点击跳转） |
+| `TaskListOptimized.vue` | 任务卡片组件（状态色条 + 筛选） |
 | `BidRequirementInput.vue` | 招标文件信息输入区 |
 | `BidFileInput.vue` | 投标文件输入区，支持多切片 |
-| `TaskListOptimized.vue` | 任务列表，支持状态筛选和动画 |
-| `ReviewDetail.vue` | 审核详情展示 |
+| `WordPreviewPanel.vue` | Word 文档预览面板（带书签跳转） |
 | `TemplateDrawer.vue` | 模版库抽屉（侧边滑出） |
 | `TemplateCard.vue` | 模版卡片组件 |
 | `TemplateEditor.vue` | 模版编辑器 |
@@ -422,6 +453,10 @@ VITE_HIAGENT_USER_ID=250701283
 ## 注意事项
 
 1. **CORS**：后端已配置 `CORS(app)`，允许所有来源的跨域请求
-2. **代理**：前端 Vite 开发服务器配置了代理，将 `/hiagent/*` 请求转发到 `http://localhost:8888`
+2. **代理**：前端 Vite 开发服务器配置了代理，将 `/hiagent/*` 和 `/document/*` 请求转发到 `http://localhost:8888`
 3. **重试机制**：前端 `http.js` 实现了请求重试机制（指数退避）
 4. **模版存储**：模版数据存储在浏览器 `localStorage`，键名为 `bid_review_templates`
+5. **字段映射**：后端返回 `suggestions` 数组，前端统一映射为 `reason` 字段。UI 组件遍历 `reason` 数组逐条显示
+6. **证据定位**：每个 reason 项的 `evidence` 字段包含行号（如 "4, 12-15"），前端解析为可点击按钮，点击跳转到 Word 文档对应段落
+7. **书签预览**：`/document/preview-with-bookmarks` 接口在文档中插入 `line_N` 格式书签，与切片行号一一对应
+8. **文件大小**：后端限制上传文件大小为 2GB

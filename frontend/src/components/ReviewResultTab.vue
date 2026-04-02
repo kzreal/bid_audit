@@ -117,25 +117,34 @@
             </span>
           </div>
 
-          <!-- 审核说明 -->
-          <div v-if="task.review?.reason" class="mb-3 pl-8">
-            <p class="text-xs text-gray-600 leading-relaxed">{{ task.review.reason }}</p>
-          </div>
-
-          <!-- 证据/来源 -->
-          <div v-if="task.review?.bidSource && hasValidLineNumbers(task.review.bidSource)" class="pl-8">
-            <div class="flex items-center gap-1 flex-wrap">
-              <span class="text-xs text-gray-500">查看来源：</span>
-              <button
-                v-for="(range, idx) in parseLineRanges(task.review.bidSource)"
-                :key="idx"
-                @click="handleJumpToLine(range.start)"
-                class="text-xs text-vercel-blue hover:text-vercel-blue-hover font-medium transition-colors underline"
-                :class="{ 'ml-1': idx > 0 }"
-              >
-                {{ formatRangeDisplay(range) }}
-              </button>
+          <!-- 审核原因 - 逐条显示 -->
+          <div v-if="task.review?.reason && Array.isArray(task.review.reason) && task.review.reason.length > 0" class="mb-3 pl-8 space-y-3">
+            <div
+              v-for="(reasonItem, rIdx) in task.review.reason"
+              :key="rIdx"
+              class="border border-gray-100 rounded-vercel-sm p-2.5"
+            >
+              <!-- 原因描述 -->
+              <p v-if="reasonItem.suggestion" class="text-xs text-gray-700 leading-relaxed mb-1.5">
+                {{ reasonItem.suggestion }}
+              </p>
+              <!-- 证据行号 - 可点击跳转 -->
+              <div v-if="reasonItem.evidence && hasValidLineNumbers(reasonItem.evidence)" class="flex items-center gap-1 flex-wrap">
+                <span class="text-xs text-gray-400">定位：</span>
+                <button
+                  v-for="(range, idx) in parseLineRanges(reasonItem.evidence)"
+                  :key="idx"
+                  @click="handleJumpToLine(range.start)"
+                  class="text-xs text-vercel-blue hover:text-vercel-blue-hover font-medium transition-colors underline"
+                >
+                  段落 {{ formatRangeDisplay(range) }}
+                </button>
+              </div>
             </div>
+          </div>
+          <!-- 兼容：reason 为字符串时直接显示 -->
+          <div v-else-if="task.review?.reason && typeof task.review.reason === 'string'" class="mb-3 pl-8">
+            <p class="text-xs text-gray-600 leading-relaxed">{{ task.review.reason }}</p>
           </div>
 
           <!-- 切片详情（如果有） -->
