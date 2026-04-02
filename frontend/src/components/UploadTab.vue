@@ -1,36 +1,34 @@
 <template>
   <div class="upload-tab h-full flex flex-col">
-    <!-- 上方可滚动区域 -->
-    <div class="flex-1 overflow-y-auto min-h-0">
+    <!-- 上半区：项目配置（占50%） -->
+    <div class="h-1/2 overflow-y-auto min-h-0 border-b border-gray-200">
       <div class="p-5">
         <!-- 历史项目 -->
         <div class="mb-5">
           <label class="block text-sm font-medium text-black mb-2">历史项目</label>
-          <div class="flex gap-2">
+          <div>
             <select
               v-model="selectedProjectId"
               @change="onProjectChange"
-              class="flex-1 border border-gray-300 rounded-vercel-sm px-4 py-2.5 text-sm focus:outline-none focus:border-black transition-colors bg-white"
+              class="w-full h-8 border border-gray-300 rounded-vercel-sm px-3 text-sm focus:outline-none focus:border-black transition-colors bg-white"
             >
               <option value="">无</option>
               <option v-for="project in projects" :key="project.id" :value="project.id">
                 {{ project.name }} ({{ project.fileName }})
               </option>
             </select>
+          </div>
+          <div v-if="selectedProjectId" class="flex items-center justify-between mt-1">
+            <p class="text-xs text-gray-500">
+              最后打开: {{ formatDate(selectedProject?.lastOpenedAt) }}
+            </p>
             <button
-              v-if="selectedProjectId"
               @click="confirmDeleteProject"
-              class="px-3 py-2 border border-gray-300 rounded-vercel-sm text-sm text-gray-600 hover:text-red-500 hover:border-red-500 transition-colors"
-              title="删除项目"
+              class="text-xs text-gray-400 hover:text-red-500 transition-colors"
             >
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-              </svg>
+              删除
             </button>
           </div>
-          <p v-if="selectedProjectId && selectedProject" class="mt-1 text-xs text-gray-500">
-            最后打开: {{ formatDate(selectedProject.lastOpenedAt) }}
-          </p>
         </div>
 
         <!-- 投标文件上传 -->
@@ -87,7 +85,7 @@
           <button
             @click="startParsing"
             :disabled="parsing"
-            class="w-full bg-white text-black border border-gray-300 py-2.5 px-6 rounded-vercel-sm text-sm font-semibold transition-all duration-200 disabled:bg-gray-200 disabled:text-gray-500 disabled:cursor-not-allowed hover:bg-gray-50 hover:border-black mb-5"
+            class="btn-action w-full mb-5"
           >
             <span v-if="parsing" class="inline-flex items-center justify-center">
               <span class="loading-dots mr-2">
@@ -99,7 +97,7 @@
             </span>
             <span v-else class="flex items-center justify-center gap-2">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
               </svg>
               开始解析
             </span>
@@ -133,14 +131,14 @@
       </div>
     </div>
 
-    <!-- ═══ 审核要求区（固定在底部，不随上方内容滚动） ═══ -->
-    <div v-if="showRequirementSection" class="flex-shrink-0 border-t border-gray-200 bg-white">
-      <div class="p-5">
-        <h3 class="text-sm font-semibold text-black mb-3">审核要求</h3>
+    <!-- ═══ 审核要求区（始终显示，占50%高度） ═══ -->
+    <div class="h-1/2 flex flex-col flex-shrink-0 border-t border-gray-200 bg-white">
+      <div class="flex-1 flex flex-col min-h-0 p-5 pb-3 overflow-hidden">
+        <h3 class="text-sm font-semibold text-black mb-2">审核要求</h3>
 
-        <!-- 模板库区域 -->
-        <div class="mb-3">
-          <div class="flex items-center justify-between mb-2">
+        <!-- 模板库区域（可滚动，不占textarea空间） -->
+        <div v-if="templates.length > 0 || selectedTemplateIds.length > 0" class="mb-2 max-h-[40%] overflow-y-auto flex-shrink-0">
+          <div class="flex items-center justify-between mb-1.5">
             <label class="text-xs font-medium text-gray-700">模板库</label>
             <button
               @click="store.openTemplateDrawer()"
@@ -150,62 +148,56 @@
             </button>
           </div>
 
-          <!-- 模板卡片网格 -->
-          <div v-if="templates.length > 0" class="grid grid-cols-2 gap-2 mb-2">
+          <div class="grid grid-cols-2 gap-1.5 mb-1.5">
             <div
               v-for="template in templates"
               :key="template.id"
               @click="toggleTemplateSelection(template.id)"
               :class="[
-                'template-card p-2.5 border rounded-vercel-sm cursor-pointer transition-all duration-200',
+                'template-card p-2 border rounded-vercel-sm cursor-pointer transition-all duration-200',
                 selectedTemplateIds.includes(template.id)
                   ? 'border-vercel-blue bg-blue-50'
                   : 'border-gray-200 hover:border-gray-300'
               ]"
             >
-              <div class="flex items-start gap-2">
+              <div class="flex items-start gap-1.5">
                 <input
                   type="checkbox"
                   :checked="selectedTemplateIds.includes(template.id)"
-                  class="mt-0.5 w-3.5 h-3.5 rounded border-gray-300 text-vercel-blue focus:ring-vercel-blue"
+                  class="mt-0.5 w-3 h-3 rounded border-gray-300 text-vercel-blue focus:ring-vercel-blue"
                 />
                 <div class="flex-1 min-w-0">
                   <h4 class="text-xs font-medium text-black truncate">{{ template.name }}</h4>
-                  <p class="text-xs text-gray-500 mt-0.5 line-clamp-1">{{ template.description }}</p>
                 </div>
               </div>
             </div>
           </div>
 
-          <div v-else class="mb-2 p-3 border border-dashed border-gray-300 rounded-vercel-sm text-center">
-            <p class="text-xs text-gray-400">暂无模板，请在下方输入审核要求</p>
-          </div>
-
-          <!-- 加载选中模板按钮 -->
           <button
             v-if="selectedTemplateIds.length > 0"
             @click="loadSelectedTemplates"
-            class="w-full bg-white text-black border border-gray-300 py-1.5 px-4 rounded-vercel-sm text-xs font-medium transition-all duration-200 hover:bg-gray-50 hover:border-black mb-2"
+            class="w-full bg-white text-black border border-gray-300 py-1 px-4 rounded-vercel-sm text-xs font-medium transition-all duration-200 hover:bg-gray-50 hover:border-black"
           >
             加载选中模板 ({{ selectedTemplateIds.length }})
           </button>
         </div>
 
-        <!-- 审核要求输入 -->
-        <div class="mb-3">
+        <!-- 审核要求输入（自动撑满剩余空间） -->
+        <div class="flex-1 min-h-0 flex flex-col mt-2">
           <textarea
             v-model="requirementText"
-            rows="3"
             placeholder="例如：检查投标文件中的资质证书是否完整、有效期是否合法..."
-            class="w-full border border-gray-300 rounded-vercel-sm px-4 py-2.5 text-sm focus:outline-none focus:border-black transition-colors resize-none"
+            class="flex-1 w-full h-full border border-gray-300 rounded-vercel-sm px-4 py-2.5 text-sm focus:outline-none focus:border-black transition-colors resize-none"
           ></textarea>
         </div>
+      </div>
 
-        <!-- 生成审核任务按钮 -->
+      <!-- 生成审核任务按钮（固定底部） -->
+      <div class="flex-shrink-0 px-5 pb-5 pt-2">
         <button
           @click="convertToTasks"
           :disabled="!canConvert || taskLoading"
-          class="w-full bg-vercel-blue text-white py-2.5 px-6 rounded-vercel-sm text-sm font-semibold transition-all duration-200 disabled:bg-gray-200 disabled:text-gray-500 disabled:cursor-not-allowed hover:bg-vercel-blue-hover"
+          class="btn-action w-full"
         >
           <span v-if="taskLoading" class="inline-flex items-center justify-center">
             <span class="loading-dots mr-2">
@@ -217,7 +209,7 @@
           </span>
           <span v-else class="flex items-center justify-center gap-2">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
             </svg>
             生成审核任务
           </span>
@@ -447,12 +439,9 @@ const selectFile = (file) => {
 const startParsing = async () => {
   if (!uploadedFile.value) return
 
-  // 新建项目时弹出输入框确认名称
+  // 新建项目时自动用文件名作为名称
   if (!selectedProjectId.value) {
-    const defaultName = projectName.value || uploadedFile.value.name.replace(/\.docx$/i, '') || '未命名项目'
-    const inputName = prompt('请输入项目名称：', defaultName)
-    if (!inputName || !inputName.trim()) return
-    projectName.value = inputName.trim()
+    projectName.value = projectName.value || uploadedFile.value.name.replace(/\.docx$/i, '') || '未命名项目'
   }
 
   parsing.value = true
@@ -640,5 +629,71 @@ function handleDeleteTemplate(id) {
 <style scoped>
 .upload-zone {
   transition: all 0.2s ease;
+}
+
+/* 主按钮 - 蓝色渐变发光 */
+.btn-action {
+  position: relative;
+  padding: 0.625rem 1.5rem;
+  border-radius: 2px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: white;
+  background: linear-gradient(135deg, #0070f3 0%, #0050d3 100%);
+  border: none;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 1px 3px rgba(0, 112, 243, 0.2), 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+.btn-action:hover:not(:disabled) {
+  background: linear-gradient(135deg, #0060df 0%, #0040c0 100%);
+  box-shadow: 0 4px 12px rgba(0, 112, 243, 0.3), 0 2px 4px rgba(0, 0, 0, 0.08);
+  transform: translateY(-1px);
+}
+
+.btn-action:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: 0 1px 2px rgba(0, 112, 243, 0.15);
+}
+
+.btn-action:disabled {
+  background: #e5e7eb;
+  color: #9ca3af;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+/* 加载动画点 */
+.loading-dots {
+  display: inline-flex;
+  gap: 3px;
+}
+
+.loading-dots span {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: dot-pulse 1.2s ease-in-out infinite;
+}
+
+.loading-dots span:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.loading-dots span:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+@keyframes dot-pulse {
+  0%, 80%, 100% {
+    opacity: 0.3;
+    transform: scale(0.8);
+  }
+  40% {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 </style>
