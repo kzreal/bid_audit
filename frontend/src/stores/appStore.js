@@ -239,6 +239,7 @@ export const useAppStore = defineStore('app', {
       this.setLoading(true)
       this.clearError()
       this.startReviewing()
+      this.updateTask(taskId, { reviewing: true })
 
       try {
         // 如果有切片，使用切片审核；否则检查 contextText
@@ -270,6 +271,7 @@ export const useAppStore = defineStore('app', {
         this.setError(error.message || '审核任务失败，请重试')
         throw error
       } finally {
+        this.updateTask(taskId, { reviewing: false })
         this.setLoading(false)
         this.endReviewing()
       }
@@ -294,6 +296,7 @@ export const useAppStore = defineStore('app', {
       this.setLoading(true)
       this.clearError()
       this.startReviewing()
+      this.updateTask(taskId, { reviewing: true })
 
       try {
         // 调用多切片审核 API - 提取纯内容数组
@@ -358,6 +361,7 @@ export const useAppStore = defineStore('app', {
         this.setError(error.message || '审核任务失败，请重试')
         throw error
       } finally {
+        this.updateTask(taskId, { reviewing: false })
         this.setLoading(false)
         this.endReviewing()
       }
