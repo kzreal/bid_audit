@@ -41,16 +41,31 @@
             @change="handleFileChange"
             class="hidden"
           />
-          <button
+          <!-- 拖拽上传区域 -->
+          <div
             v-if="!uploadedFile"
+            class="drop-zone h-20 border border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center transition-all duration-200 cursor-pointer hover:border-gray-400 hover:bg-gray-50/50"
+            :class="{ 'drop-zone-active': isDraggingOver }"
+            @dragover.prevent="handleDragOver"
+            @dragleave="handleDragLeave"
+            @drop.prevent="handleDrop"
             @click="triggerFileInput"
-            class="inline-flex items-center gap-1.5 text-sm text-vercel-blue hover:text-vercel-blue-hover font-medium transition-colors"
           >
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
-            </svg>
-            选择 .docx 文件
-          </button>
+            <div class="flex items-center gap-2 text-sm text-gray-500" :class="{ 'text-vercel-blue': isDraggingOver }">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+              </svg>
+              <span class="font-medium">{{ isDraggingOver ? '松开以上传' : '拖拽 .docx 文件到此处' }}</span>
+            </div>
+            <p v-if="!isDraggingOver" class="text-xs text-gray-400 mt-1">或点击选择文件</p>
+            <div v-else class="mt-1.5">
+              <div class="loading-dots-mini">
+                <span></span>
+                <span></span>
+                <span></span>
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- 已上传文件信息（紧凑单行） -->
@@ -258,6 +273,7 @@ const messageType = ref('info')
 const fileInputRef = ref(null)
 const selectedProjectId = ref('')
 const projects = ref([])
+const isDraggingOver = ref(false)
 
 // === 任务相关状态 ===
 const requirementText = ref('')
@@ -398,8 +414,19 @@ const triggerFileInput = () => {
   fileInputRef.value?.click()
 }
 
+const handleDragOver = (e) => {
+  e.preventDefault()
+  isDraggingOver.value = true
+}
+
+const handleDragLeave = (e) => {
+  e.preventDefault()
+  isDraggingOver.value = false
+}
+
 const handleDrop = (e) => {
-  dragOver.value = false
+  e.preventDefault()
+  isDraggingOver.value = false
   const files = e.dataTransfer.files
   if (files.length > 0) {
     selectFile(files[0])
@@ -691,5 +718,16 @@ function handleDeleteTemplate(id) {
     opacity: 1;
     transform: scale(1);
   }
+}
+
+/* 拖拽上传区域 */
+.drop-zone {
+  background: rgba(255, 255, 255, 0.8);
+}
+
+.drop-zone-active {
+  border-color: #0070f3 !important;
+  border-style: solid;
+  background: rgba(0, 112, 243, 0.04);
 }
 </style>
