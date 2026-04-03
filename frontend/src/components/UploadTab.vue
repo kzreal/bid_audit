@@ -1,7 +1,7 @@
 <template>
   <div class="upload-tab h-full flex flex-col">
     <!-- 上半区：项目配置（占50%） -->
-    <div class="h-1/2 overflow-y-auto min-h-0 border-b border-gray-200">
+    <div class="h-[40%] overflow-y-auto min-h-0 border-b border-gray-200">
       <div class="p-5">
         <!-- 历史项目 -->
         <div class="mb-5">
@@ -130,7 +130,7 @@
     </div>
 
     <!-- ═══ 审核要求区（始终显示，占50%高度） ═══ -->
-    <div class="h-1/2 flex flex-col flex-shrink-0 border-t border-gray-200 bg-white">
+    <div class="h-[60%] flex flex-col flex-shrink-0 border-t border-gray-200 bg-white">
       <div class="flex-1 flex flex-col min-h-0 p-5 pb-3 overflow-hidden">
         <h3 class="text-sm font-semibold text-black mb-2">审核要求</h3>
 

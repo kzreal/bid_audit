@@ -719,6 +719,37 @@ defineExpose({
   position: relative;
   margin-bottom: 0;
   padding: 0;
+  /* 页面之间添加间隔和边框 */
+  margin-bottom: 24px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  background: white;
+  /* 确保每页有最小高度 */
+  min-height: 800px;
+}
+
+/* docx-preview 分页样式 - 页面之间添加间隔 */
+.docx-preview section + section {
+  margin-top: 24px;
+  page-break-before: always;
+}
+
+/* 通用分页类名 */
+.page-break,
+.docx-page,
+section[style*="page-break"] {
+  margin-top: 24px !important;
+  page-break-before: always !important;
+}
+
+/* Word 分页符 */
+.MsoPageBreak,
+.w_pagebreak {
+  display: block !important;
+  margin-top: 24px !important;
+  page-break-before: always !important;
+  padding-top: 24px !important;
 }
 
 .docx-preview p {
